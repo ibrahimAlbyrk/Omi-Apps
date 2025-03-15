@@ -6,8 +6,7 @@ from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 SCOPES = [os.getenv("GMAIL_SCOPES")]
-
-CLIENT_SECRET_FILE = os.getenv("client_secret.json")
+CLIENT_SECRET_FILE = os.getenv("CLIENT_SECRET_FILE", "/root/Omi-Apps/Omi/env/client_secret.json")
 
 class GmailClient:
     def __init__(self):
@@ -27,7 +26,7 @@ class GmailClient:
             if creds and creds.expired and creds.refresh_token:
                 creds.refresh(Request())
             else:
-                flow = InstalledAppFlow.from_client_secrets_file("/Omi/env/client_secret.json", "https://www.googleapis.com/auth/gmail.readonly")
+                flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
                 creds = flow.run_local_server(port=0)
 
             with open(token_path, "wb") as token:
