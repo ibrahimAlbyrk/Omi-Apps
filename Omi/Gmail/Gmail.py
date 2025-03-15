@@ -6,7 +6,7 @@ from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
 
 SCOPES = [os.getenv("GMAIL_SCOPES")]
-CLIENT_SECRET_FILE = os.getenv("CLIENT_SECRET_FILE", "/root/Omi-Apps/Omi/env/client_secret.json")
+CLIENT_SECRET_FILE = os.getenv("CLIENT_SECRET_FILE")
 
 class GmailClient:
     def __init__(self):
