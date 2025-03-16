@@ -65,7 +65,7 @@ class UserRepository:
     def create_table(self):
         query = """
         CREATE TABLE IF NOT EXISTS users (
-        uid INTEGER PRIMARY KEY AUTOINCREMENT,
+        uid TEXT PRIMARY KEY,
         google_credentials TEXT NOT NULL
         );
         """
@@ -75,6 +75,10 @@ class UserRepository:
     def add_user(self, uid, google_credentials=None):
         query = "INSERT INTO users (uid, google_credentials) VALUES (?, ?)"
         self.db.execute(query, (uid, google_credentials))
+
+    def has_user(self, uid):
+        query = "SELECT 1 FROM users WHERE uid = ?;"
+        return self.db.fetch_one(query, (uid,)) is not None
 
     def delete_user(self, uid):
         query = "DELETE FROM users WHERE uid = ?;"
@@ -92,11 +96,7 @@ class UserRepository:
 db = DatabaseManager()
 user_repository = UserRepository(db)
 
-
-def main():
-    user_repository.delete_user(123)
-    user_repository.delete_user(891230897312897)
-
-
-if __name__ == '__main__':
-    main()
+user_repository.delete_user("bhnZLNzCiGgbsxxgpru2NKpxGJL2")
+#
+# if __name__ == '__main__':
+#     main()
