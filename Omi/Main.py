@@ -10,12 +10,13 @@ OmiActions = OmiActions.ActionClient('en')
 EmailClassifier = EmailClassifier()
 
 def main():
-   emails = Gmail.fetch_emails(5)
+   emails = Gmail.fetch_emails(1)
 
    for email in emails:
-       is_important = EmailClassifier.classify_email_importance(email)
-       if is_important:
-           success, status_code = OmiActions.send_email_to_conversations(email)
+       classify = EmailClassifier.classify_email_importance(email)
+       answer = classify["answer"]
+       if answer:
+           success, status_code = OmiActions.send_email_to_conversations(email, classify)
            if not success:
                print(f"Failed to send email to Omi. HTTP Status: {status_code}")
 
