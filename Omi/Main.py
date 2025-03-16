@@ -13,7 +13,7 @@ def main():
    emails = Gmail.fetch_emails(1)
 
    for email in emails:
-       classify = EmailClassifier.classify_email_importance(email)
+       classify = EmailClassifier.classify_email(email)
        answer = classify["answer"]
        if answer:
            success, status_code = OmiActions.send_email_to_conversations(email, classify)

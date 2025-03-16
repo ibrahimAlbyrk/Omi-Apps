@@ -36,7 +36,7 @@ class EmailClassifier:
             "greetings",
         ]
 
-    def classify_email_importance(self, mail):
+    def classify_email(self, mail):
         """Uses OpenAI to classify if an email is important based on predefined criteria."""
         prompt = (
             f"""
