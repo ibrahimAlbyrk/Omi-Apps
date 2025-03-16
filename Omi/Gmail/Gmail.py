@@ -1,9 +1,11 @@
 import os
 import pickle
 import base64
+from datetime import datetime, timezone
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
+from email.utils import parsedate_to_datetime
 
 SCOPES = [os.getenv("GMAIL_SCOPES")]
 CLIENT_SECRET_FILE = os.getenv("CLIENT_SECRET_FILE")
@@ -50,11 +52,15 @@ class GmailClient:
             payload = mail.get("payload", {})
             headers = payload.get("headers", [])
 
+            date = next((header["value"] for header in headers if header["name"].lower() == "date"), "No Subject")
+            date = parsedate_to_datetime(date).astimezone(timezone.utc).isoformat()
+
             subject = next((header["value"] for header in headers if header["name"].lower() == "subject"), "No Subject")
             from_email = next((header["value"] for header in headers if header["name"].lower() == "from"), "Unknown Sender")
             body = self.decode_email_body(payload)
 
             emails.append({
+                "date": date,
                 "subject": subject,
                 "from": from_email,
                 "body": body,
@@ -65,14 +71,18 @@ class GmailClient:
     @staticmethod
     def decode_email_body(payload):
         """Extracts and decodes the email body from the Gmail API response."""
+        decoded_parts = []
+
         if "body" in payload and "data" in payload["body"]:
-            return base64.urlsafe_b64decode(payload["body"]["data"]).decode("utf-8")
+            decoded_parts.append(base64.urlsafe_b64decode(payload["body"]["data"]).decode("utf-8"))
 
         if "parts" in payload:
             for part in payload["parts"]:
-                if part["mimeType"] == "text/plain":
-                    return base64.urlsafe_b64decode(part["body"]["data"]).decode("utf-8")
-                elif part["mimeType"] == "text/html":
-                    return base64.urlsafe_b64decode(part["body"]["data"]).decode("utf-8")
+                if "body" in part and "data" in part["body"]:
+                    try:
+                        decoded_text = base64.urlsafe_b64decode(part["body"]["data"]).decode("utf-8")
+                        decoded_parts.append(decoded_text)
+                    except Exception as e:
+                        decoded_parts.append(f"[Error decoding part: {str(e)}]")
 
-        return "[Content couldn't be read]"
+        return "\n\n".join(decoded_parts) if decoded_parts else "[Content couldn't be read]"
