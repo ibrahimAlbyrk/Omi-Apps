@@ -91,12 +91,3 @@ class UserRepository:
     def update_credentials(self, uid, new_google_credentials):
         query = "UPDATE users SET google_credentials = ? WHERE uid = ?;"
         self.db.execute(query, (new_google_credentials, uid))
-
-
-db = DatabaseManager()
-user_repository = UserRepository(db)
-
-user_repository.delete_user("bhnZLNzCiGgbsxxgpru2NKpxGJL2")
-#
-# if __name__ == '__main__':
-#     main()
