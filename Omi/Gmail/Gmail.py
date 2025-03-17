@@ -10,6 +10,7 @@ from email.utils import parsedate_to_datetime
 SCOPES = [os.getenv("GMAIL_SCOPES")]
 CLIENT_SECRET_FILE = os.getenv("CLIENT_SECRET_FILE")
 
+
 class GmailClient:
     def __init__(self):
         self.service = self.authenticate_gmail()
@@ -56,7 +57,8 @@ class GmailClient:
             date = parsedate_to_datetime(date).astimezone(timezone.utc).isoformat()
 
             subject = next((header["value"] for header in headers if header["name"].lower() == "subject"), "No Subject")
-            from_email = next((header["value"] for header in headers if header["name"].lower() == "from"), "Unknown Sender")
+            from_email = next((header["value"] for header in headers if header["name"].lower() == "from"),
+                              "Unknown Sender")
             body = self.decode_email_body(payload)
 
             emails.append({
@@ -86,3 +88,27 @@ class GmailClient:
                         decoded_parts.append(f"[Error decoding part: {str(e)}]")
 
         return "\n\n".join(decoded_parts) if decoded_parts else "[Content couldn't be read]"
+
+
+def start_gmail_watch(credentials):
+    try:
+        service = build("gmail", "v1", credentials=credentials)
+        request = {
+            "labelIds": ["INBOX"],
+            "topicName": "projects/omi-apps/topics/gmail-notifications"
+        }
+        response = service.users().watch(userId="me", body=request).execute()
+        print(f"Watching: {response}")
+    except HttpError as error:
+        print(f"Gmail Watch error: {error}")
+
+
+def stop_gmail_watch(credentials):
+    try:
+        service = build("gmail", "v1", credentials=credentials)
+        response = service.users().stop(userId="me").execute()
+        print(f"Gmail watch stopped: {response}")
+        return True
+    except HttpError as error:
+        print(f"Gmail watch couldn't stopped: {error}")
+        return False
