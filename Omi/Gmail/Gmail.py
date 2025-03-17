@@ -20,6 +20,8 @@ class GmailClient:
         self.id = _id
         self.credentials = credentials
         self.service = self.authenticate_gmail()
+        self.last_seen_email_ids = []
+        self.last_seen_email_time = None
 
     def authenticate_gmail(self):
         return build("gmail", "v1", credentials=self.credentials)
@@ -33,14 +35,23 @@ class GmailClient:
             return []
 
         emails = []
+        new_seen_email_ids = []
+        latest_email_time = self.last_seen_email_time
 
         for msg in messages:
+            if msg["id"] in self.last_seen_email_ids:
+                continue
+
             mail = self.service.users().messages().get(userId="me", id=msg["id"]).execute()
             payload = mail.get("payload", {})
             headers = payload.get("headers", [])
 
             date = next((header["value"] for header in headers if header["name"].lower() == "date"), "No Subject")
-            date = parsedate_to_datetime(date).astimezone(timezone.utc).isoformat()
+            date_obj = parsedate_to_datetime(date).astimezone(timezone.utc)
+            date_iso = date_obj.isoformat()
+
+            if self.last_seen_email_time and date_obj <= self.last_seen_email_time:
+                continue
 
             subject = next((header["value"] for header in headers if header["name"].lower() == "subject"), "No Subject")
             from_email = next((header["value"] for header in headers if header["name"].lower() == "from"),
@@ -48,11 +59,20 @@ class GmailClient:
             body = self.decode_email_body(payload)
 
             emails.append({
-                "date": date,
+                "date": date_iso,
                 "subject": subject,
                 "from": from_email,
                 "body": body,
             })
+
+            new_seen_email_ids.append(msg["id"])
+
+            if latest_email_time is None or date_obj > latest_email_time:
+                latest_email_time = date_obj
+
+        if emails:
+            self.last_seen_email_ids.extend(new_seen_email_ids)
+            self.last_seen_email_time = latest_email_time
 
         return emails
 
@@ -84,5 +104,6 @@ class GmailClient:
     def gmail_check_pool(self, callback: function, interval=60, max_results=5):
         while True:
             emails = self.fetch_emails(max_results)
-            callback(emails)
+            if emails:
+                callback(emails)
             time.sleep(interval)
