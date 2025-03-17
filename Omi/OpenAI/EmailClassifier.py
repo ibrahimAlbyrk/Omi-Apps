@@ -2,12 +2,11 @@ import os
 import json
 import openai
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
 
 class EmailClassifier:
     def __init__(self):
-        self.client = openai.Client(api_key=OPENAI_API_KEY)
+        api_key = os.getenv("OPENAI_API_KEY")
+        self.client = openai.Client(api_key=api_key)
         self.always_important = False
         self.IMPORTANT_CATEGORIES = [
             "urgent",
