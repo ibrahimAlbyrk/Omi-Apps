@@ -16,7 +16,7 @@ class ThreadManager:
             return False
 
         self.thread_status[_id] = True
-        thread = threading.Thread(target=target_function, args=(_id, *args), daemon=True)
+        thread = threading.Thread(target=target_function, args=args, daemon=True)
         self.threads[_id] = thread
         thread.start()
         return True
