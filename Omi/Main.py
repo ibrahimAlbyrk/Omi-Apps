@@ -106,29 +106,6 @@ def callback():
     # endregion
 
     return "Login is successful, infos are saved!"
-
-
-@app.route('/pubsub', methods=['POST'])
-def pubsub_push_handler():
-    print(request.get_json())
-    if not request.is_json:
-        abort(400)
-
-    envelope = request.get_json()
-    if not envelope or 'message' not in envelope:
-        abort(400)
-
-    pubsub_message = envelope['message']
-    if 'data' in pubsub_message:
-        message_data = base64.b64decode(pubsub_message['data']).decode('utf-8')
-        notification = json.loads(message_data)
-        print(notification)
-
-        email_id = notification.get('emailAddress')
-        if email_id:
-            print(email_id)
-
-    return '', 204
 #endregion
 
 """ \/ -------------- EMAIL FUNCTIONS -------------- \/ """
