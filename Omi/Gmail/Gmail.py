@@ -1,44 +1,30 @@
 import os
 import pickle
 import base64
+import threading
 from datetime import datetime, timezone
 from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+from email.utils import parsedate_to_datetime
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import InstalledAppFlow
-from email.utils import parsedate_to_datetime
+
+from Omi.Thread.ThreadManager import thread_manager
 
 SCOPES = [os.getenv("GMAIL_SCOPES")]
 CLIENT_SECRET_FILE = os.getenv("CLIENT_SECRET_FILE")
 
 
 class GmailClient:
-    def __init__(self):
+    def __init__(self, _id, credentials):
+        self.id = _id
+        self.credentials = credentials
         self.service = self.authenticate_gmail()
 
-    @staticmethod
-    def authenticate_gmail():
-        """Authenticates and returns a Gmail API service instance."""
-        creds = None
-        token_path = "token.pickle"
-
-        if os.path.exists(token_path):
-            with open(token_path, "rb") as token:
-                creds = pickle.load(token)
-
-        if not creds or not creds.valid:
-            if creds and creds.expired and creds.refresh_token:
-                creds.refresh(Request())
-            else:
-                flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
-                creds = flow.run_local_server(port=0)
-
-            with open(token_path, "wb") as token:
-                pickle.dump(creds, token)
-
-        return build("gmail", "v1", credentials=creds)
+    def authenticate_gmail(self):
+        return build("gmail", "v1", credentials=self.credentials)
 
     def fetch_emails(self, max_results=5):
-        """Fetches the latest emails from the user's Gmail account."""
         try:
             results = self.service.users().messages().list(userId="me", maxResults=max_results).execute()
             messages = results.get("messages", [])
@@ -72,7 +58,6 @@ class GmailClient:
 
     @staticmethod
     def decode_email_body(payload):
-        """Extracts and decodes the email body from the Gmail API response."""
         decoded_parts = []
 
         if "body" in payload and "data" in payload["body"]:
@@ -89,26 +74,15 @@ class GmailClient:
 
         return "\n\n".join(decoded_parts) if decoded_parts else "[Content couldn't be read]"
 
+    def start_gmail_listening(self, callback: function):
+        thread_manager.start_thread(_id=self.id, target_function=self.gmail_check_pool, args= (callback, 60, 3))
 
-def start_gmail_watch(credentials):
-    try:
-        service = build("gmail", "v1", credentials=credentials)
-        request = {
-            "labelIds": ["INBOX"],
-            "topicName": "projects/omi-apps/topics/gmail-notifications"
-        }
-        response = service.users().watch(userId="me", body=request).execute()
-        print(f"Watching: {response}")
-    except HttpError as error:
-        print(f"Gmail Watch error: {error}")
+    def stop_gmail_listening(self):
+        if thread_manager.is_running(self.id):
+            thread_manager.stop_thread(self.id)
 
-
-def stop_gmail_watch(credentials):
-    try:
-        service = build("gmail", "v1", credentials=credentials)
-        response = service.users().stop(userId="me").execute()
-        print(f"Gmail watch stopped: {response}")
-        return True
-    except HttpError as error:
-        print(f"Gmail watch couldn't stopped: {error}")
-        return False
+    def gmail_check_pool(self, callback: function, interval=60, max_results=5):
+        while True:
+            emails = self.fetch_emails(max_results)
+            callback(emails)
+            time.sleep(interval)
