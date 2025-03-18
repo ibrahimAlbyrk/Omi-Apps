@@ -41,9 +41,9 @@ def login():
 
 @app.route("/logout", methods=["POST"])
 def logout():
-    uid = session.get("uid")
+    uid = request.args.get("uid")
     if not uid:
-        return "Error: No user session found.", 400
+        return "OPS! There is no UID :(", 400
 
     # region Get Credentials
     token_path = user_repository.get_credentials(uid)
@@ -101,6 +101,19 @@ def callback():
     return "Login is successful!"
 #endregion
 
+def start_listening_all_users():
+    users = user_repository.get_all_users()
+
+    for user in users:
+        uid = user["uid"]
+        token_path = user["google_credentials"]
+
+        with open(token_path, "rb") as token_file:
+            credentials = pickle.load(token_file)
+
+        gmail_service = GmailService(credentials, thread_manager)
+        gmail_service.start_listening(uid, lambda emails: process_new_emails(uid, emails))
 
 if __name__ == '__main__':
+    start_listening_all_users()
     app.run(host='127.0.0.1', port=5000, debug=True, ssl_context="adhoc")
