@@ -59,7 +59,7 @@ class OmiActionService(IActionService):
             f"**Tags**: {', '.join(tags) if tags else ''}",
             f"**Sentiment**: {sentiment}",
             f"**Sender Importance**: {sender_importance}",
-            f"{f'**Suggested Actions**: {", ".join(suggested_actions)}' if suggested_actions else ''}",
+            f"{f'**Suggested Actions**: {', '.join(suggested_actions)}' if suggested_actions else ''}",
             "---",
             "## Summary",
             summary,
