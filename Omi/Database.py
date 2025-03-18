@@ -81,6 +81,11 @@ class UserRepository(IUserRepository):
         query = "SELECT 1 FROM users WHERE uid = ?;"
         return self.db.fetch_one(query, (uid,)) is not None
 
+    def get_all_users(self) -> []:
+        query = "SELECT * FROM users;"
+        results = self.db.fetch_all(query)
+        return [{"uid": row["uid"], "google_credentials": row["google_credentials"]} for row in results]
+
     def delete_user(self, uid: str):
         query = "DELETE FROM users WHERE uid = ?;"
         self.db.execute(query, (uid,))
