@@ -1,4 +1,7 @@
 import os
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # APP
 APP_SECRET_KEY = os.getenv("APP_SECRET_KEY")

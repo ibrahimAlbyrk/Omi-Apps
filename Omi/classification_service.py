@@ -1,6 +1,7 @@
 import os
 import json
 import openai
+from Config import OPENAI_API_KEY
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 class IClassificationService:
@@ -10,7 +11,7 @@ class IClassificationService:
 
 class AIClassificationService(IClassificationService):
     def __init__(self, openai_client=None):
-        api_key = os.getenv("OPENAI_API_KEY")
+        api_key = OPENAI_API_KEY
         if openai_client is None:
             self.client = openai.Client(api_key=api_key)
         else:
