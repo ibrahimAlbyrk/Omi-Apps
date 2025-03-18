@@ -52,6 +52,8 @@ class OmiActionService(IActionService):
         suggested_actions = classification.get('suggested_actions', [])
         reply_required = classification.get('reply_required', False)
 
+        suggested_actions_text = f"**Suggested Actions**: {', '.join(suggested_actions)}" if suggested_actions else ""
+
         parts = [
             f"# {subject}",
             f"**From**: {sender}",
@@ -59,7 +61,7 @@ class OmiActionService(IActionService):
             f"**Tags**: {', '.join(tags) if tags else ''}",
             f"**Sentiment**: {sentiment}",
             f"**Sender Importance**: {sender_importance}",
-            f"{f'**Suggested Actions**: {', '.join(suggested_actions)}' if suggested_actions else ''}",
+            suggested_actions_text,
             "---",
             "## Summary",
             summary,
