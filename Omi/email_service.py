@@ -1,5 +1,6 @@
 import time
 import base64
+import asyncio
 from datetime import timezone
 from email.utils import parsedate_to_datetime
 from googleapiclient.discovery import build
@@ -49,8 +50,9 @@ class GmailService:
         self.last_seen_email_ids = set()
         self.last_seen_email_time = None
 
-    def fetch_emails(self, max_results: int = 5):
-        messages = self.api_client.fetch_messages(max_results)
+    async def fetch_emails(self, max_results: int = 5):
+        loop = asyncio.get_event_loop()
+        messages = await loop.run_in_executor(None, api_client.fetch_messages, max_results)
         emails = []
         new_seen_ids = set()
         latest_email_time = self.last_seen_email_time
@@ -94,9 +96,10 @@ class GmailService:
     def stop_listening(self, listen_id: str):
         self.thread_manager.stop_thread(f"gmail_listener_{listen_id}")
 
-    def _pool_emails(self, callback, interval, max_results):
-        while self.thread_manager.is_running("gmail_listener"):
-            emails = self.fetch_emails(max_results)
+    @staticmethod
+    async def _pool_emails(stop_event, callback, interval, max_results):
+        while not stop_event.is_set():
+            emails = await fetch_emails_async(api_client, max_results)
             if emails:
                 callback(emails)
-            time.sleep(interval)
+            await asyncio.sleep(interval)

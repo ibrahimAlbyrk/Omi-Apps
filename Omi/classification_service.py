@@ -1,7 +1,7 @@
 import os
 import json
 import openai
-
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 class IClassificationService:
     def classify_email(self, email: dict) -> dict:
@@ -44,6 +44,7 @@ class AIClassificationService(IClassificationService):
             "greetings",
         ]
 
+    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def classify_email(self, email: dict) -> dict:
         prompt = (
             f"Mail Title: {email.get('subject', '')}\n"
