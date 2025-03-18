@@ -49,9 +49,8 @@ class GmailService:
         self.last_seen_email_ids = set()
         self.last_seen_email_time = None
 
-    async def fetch_emails(self, max_results: int = 5):
-        loop = asyncio.get_event_loop()
-        messages = await loop.run_in_executor(None, self.api_client.fetch_messages, max_results)
+    def fetch_emails(self, max_results: int = 5):
+        messages = self.api_client.fetch_messages(max_results)
         emails = []
         new_seen_ids = set()
         latest_email_time = self.last_seen_email_time
