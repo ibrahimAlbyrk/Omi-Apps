@@ -1,4 +1,3 @@
-import asyncio
 import threading
 
 
@@ -39,7 +38,8 @@ class ThreadManager(IThreadManager):
 
     def stop_thread(self, thread_id: str) -> bool:
         if thread_id in self.stop_flags:
-            self.stop_flags[thread_id].set()
+            self.stop_flags.pop(thread_id).set()
+            self.threads.pop(thread_id)
             return True
         return False
 
