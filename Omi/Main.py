@@ -1,43 +1,26 @@
 import os
-import json
-import base64
 import pickle
+from Database import UserRepository
+from email_service import GmailService
+from action_service import OmiActionService
+from thread_manager import thread_manager
 from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
-from DB.Database import DatabaseManager, UserRepository
-from flask import Flask, request, redirect, session, abort
+from new_emails_monitor import process_new_emails
+from flask import Flask, request, redirect, session
+from classification_service import AIClassificationService
+from Config import APP_SECRET_KEY, GOOGLE_CLIENT_SECRET, REDIRECT_URI, GMAIL_SCOPES
 
-from Gmail import Gmail
-
-""" \/ -------------- SETUP -------------- \/ """
+""" ⬇️ -------------- SETUP -------------- ⬇️ """
 #region setup
 app = Flask(__name__)
-app.secret_key = "mailmate.omi-wroom.org"
+app.secret_key = APP_SECRET_KEY
 
-GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
-GOOGLE_CLIENT_SECRET = os.getenv("CLIENT_SECRET_FILE")
-
-SCOPES = [
-    "https://www.googleapis.com/auth/gmail.readonly",
-    "https://www.googleapis.com/auth/gmail.modify",
-    "https://www.googleapis.com/auth/gmail.metadata",
-    "https://www.googleapis.com/auth/userinfo.email",
-    "https://www.googleapis.com/auth/userinfo.profile",
-    "openid"]
-
-REDIRECT_URI = "https://mailmate.omi-wroom.org/gmail-callback"
-
-db = DatabaseManager()
-user_repository = UserRepository(db)
-
-flow = Flow.from_client_secrets_file(
-    GOOGLE_CLIENT_SECRET,
-    scopes=SCOPES,
-    redirect_uri=REDIRECT_URI
-)
+db_manager = SQLiteDatabaseManager()
+user_repository = UserRepository(db_manager)
+classification_service = AIClassificationService()
 #endregion
 
-""" \/ -------------- WEBHOOK FUNCTIONS -------------- \/ """
+""" ⬇️ -------------- WEBHOOK FUNCTIONS -------------- ⬇️ """
 #region webhook
 @app.route("/login")
 def login():
@@ -46,9 +29,13 @@ def login():
     if not uid:
         return "OPS! There is no UID :(", 400
 
-    session["uid"] = uid
-
+    flow = Flow.from_client_secrets_file(
+        client_secrets_file=GOOGLE_CLIENT_SECRET,
+        scopes=GMAIL_SCOPES,
+        redirect_uri=REDIRECT_URI
+    )
     auth_url, _ = flow.authorization_url(prompt="consent")
+    session["uid"] = uid
     return redirect(auth_url)
 
 
@@ -74,13 +61,21 @@ def logout():
     session.pop("uid", None)
     user_repository.delete_user(uid)
 
-    gmail_client = Gmail.GmailClient(uid, credentials=credentials)
-    gmail_client.stop_gmail_listening()
+    gmail_service = GmailService(credentials, thread_manager)
+    gmail_service.stop_listening(uid)
     # endregion
+
+    return "Logged out successfully."
 
 
 @app.route("/gmail-callback")
 def callback():
+    flow = Flow.from_client_secrets_file(
+        client_secrets_file=GOOGLE_CLIENT_SECRET,
+        scopes=GMAIL_SCOPES,
+        redirect_uri=REDIRECT_URI
+    )
+
     flow.fetch_token(authorization_response=request.url)
     credentials = flow.credentials
 
@@ -88,8 +83,8 @@ def callback():
     if not uid:
         return "Error: There is no uid :(", 400
 
-    gmail_client = Gmail.GmailClient(uid, credentials=credentials)
-    gmail_client.start_gmail_listening(new_emails_arrived)
+    gmail_service = GmailService(credentials, thread_manager)
+    gmail_service.start_listening(uid, lambda emails: process_new_emails(uid, emails))
 
     # region Update database
     if not os.path.exists("tokens"):
@@ -99,25 +94,13 @@ def callback():
     with open(token_path, "wb") as token_file:
         pickle.dump(credentials, token_file)
 
-    if user_repository.has_user(uid):
-        user_repository.update_credentials(uid, token_path)
-    else:
+    if not user_repository.has_user(uid):
         user_repository.add_user(uid, token_path)
     # endregion
 
-    return "Login is successful, infos are saved!"
+    return "Login is successful!"
 #endregion
 
-""" \/ -------------- EMAIL FUNCTIONS -------------- \/ """
-#region mail
-def new_emails_arrived(emails: []):
-   for email in emails:
-       classify = EmailClassifier.classify_email(email)
-       answer = classify["answer"]
-       if answer:
-           success, status_code = OmiActions.send_email_to_conversations(email, classify)
-           if not success:
-               print(f"Failed to send email to Omi. HTTP Status: {status_code}")
 
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=5000, debug=True, ssl_context="adhoc")

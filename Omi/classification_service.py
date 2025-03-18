@@ -3,10 +3,19 @@ import json
 import openai
 
 
-class EmailClassifier:
-    def __init__(self):
+class IClassificationService:
+    def classify_email(self, email: dict) -> dict:
+        raise NotImplementedError
+
+
+class AIClassificationService(IClassificationService):
+    def __init__(self, openai_client=None):
         api_key = os.getenv("OPENAI_API_KEY")
-        self.client = openai.Client(api_key=api_key)
+        if openai_client is None:
+            self.client = openai.Client(api_key=api_key)
+        else:
+            self.openai_client = openai_client
+        self.api_key = api_key
         self.always_important = False
         self.IMPORTANT_CATEGORIES = [
             "urgent",
@@ -35,25 +44,19 @@ class EmailClassifier:
             "greetings",
         ]
 
-    def classify_email(self, mail):
-        """Uses OpenAI to classify if an email is important based on predefined criteria."""
+    def classify_email(self, email: dict) -> dict:
         prompt = (
-            f"""
-            Mail Title: {mail['subject']}
-            From: {mail['from']}
-            Content: {mail['body'][:1000]}
-            """.strip()
+            f"Mail Title: {email.get('subject', '')}\n"
+            f"From: {email.get('from', '')}\n"
+            f"Content: {email.get('body', '')[:1000]}"
         )
-
         system_prompt = f"""
                 You are an advanced email classifier. Analyze the given email thoroughly based on:
-
+                
                 IMPORTANT CATEGORIES (exactly match the main purpose or intent): {', '.join(self.IMPORTANT_CATEGORIES)}
-
                 IGNORED CATEGORIES (emails that are promotional, generic, or low priority): {', '.join(self.IGNORED_CATEGORIES)}
 
                 Classify the email with precision according to these instructions:
-
                 - "answer": Set true if email clearly matches an IMPORTANT CATEGORY; otherwise false.
                 - "important": Identify exactly one matched IMPORTANT CATEGORY or None if none match clearly.
                 - "priority": Determine based on urgency, sender's importance, deadlines, and the potential impact:
@@ -85,7 +88,6 @@ class EmailClassifier:
                 If no category clearly matches, set both categories to None and answer to false.
 
                 Provide the classification strictly in the exact JSON format without additional text or explanations:
-
                 {{
                     "answer": true or false,
                     "important": matched important category or None,
@@ -103,7 +105,7 @@ class EmailClassifier:
                 }}
                 """
 
-        response = self.client.chat.completions.create(
+        response = self.openai_client.ChatCompletion.create(
             model="gpt-4o-mini",
             response_format={"type": "json_object"},
             messages=[
@@ -112,5 +114,6 @@ class EmailClassifier:
             ]
         )
 
-        content = json.loads(response.choices[0].message.content.strip())
-        return content
+        content = response.choices[0].message.content.strip()
+        classification = json.loads(content)
+        return classification
