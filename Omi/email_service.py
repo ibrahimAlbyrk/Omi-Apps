@@ -1,6 +1,5 @@
 import time
 import base64
-import asyncio
 from datetime import timezone
 from email.utils import parsedate_to_datetime
 from googleapiclient.discovery import build
@@ -96,9 +95,9 @@ class GmailService:
     def stop_listening(self, listen_id: str):
         self.thread_manager.stop_thread(f"gmail_listener_{listen_id}")
 
-    async def _pool_emails(self, stop_event, callback, interval, max_results):
+    def _pool_emails(self, stop_event, callback, interval, max_results):
         while not stop_event.is_set():
-            emails = await self.fetch_emails(max_results)
+            emails = self.fetch_emails(max_results)
             if emails:
                 callback(emails)
-            await asyncio.sleep(interval)
+            time.sleep(interval)
