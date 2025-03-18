@@ -1,7 +1,7 @@
-from classification_service import ClassificationService
+from classification_service import AIClassificationService
 from action_service import OmiActionService
 
-classification_service = ClassificationService()
+classification_service = AIClassificationService()
 
 
 def process_new_emails(uid: str, emails: []):

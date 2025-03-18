@@ -1,5 +1,5 @@
 import requests
-from config import OMI_API_KEY, OMI_APP_ID
+from Config import OMI_API_KEY, OMI_APP_ID
 
 
 class IActionService:

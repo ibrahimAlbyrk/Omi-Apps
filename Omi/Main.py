@@ -1,12 +1,12 @@
 import os
 import pickle
-from Database import UserRepository
 from email_service import GmailService
-from action_service import OmiActionService
 from thread_manager import thread_manager
 from google_auth_oauthlib.flow import Flow
+from action_service import OmiActionService
 from new_emails_monitor import process_new_emails
 from flask import Flask, request, redirect, session
+from Database import SQLiteDatabaseManager, UserRepository
 from classification_service import AIClassificationService
 from Config import APP_SECRET_KEY, GOOGLE_CLIENT_SECRET, REDIRECT_URI, GMAIL_SCOPES
 
