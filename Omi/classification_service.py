@@ -2,7 +2,6 @@ import os
 import json
 import openai
 from Config import OPENAI_API_KEY
-from tenacity import retry, stop_after_attempt, wait_fixed
 
 class IClassificationService:
     def classify_email(self, email: dict) -> dict:
@@ -10,13 +9,8 @@ class IClassificationService:
 
 
 class AIClassificationService(IClassificationService):
-    def __init__(self, openai_client=None):
-        api_key = OPENAI_API_KEY
-        if openai_client is None:
-            self.client = openai.Client(api_key=api_key)
-        else:
-            self.openai_client = openai_client
-        self.api_key = api_key
+    def __init__(self):
+        self.client = openai.Client(api_key=OPENAI_API_KEY)
         self.always_important = False
         self.IMPORTANT_CATEGORIES = [
             "urgent",
@@ -45,7 +39,6 @@ class AIClassificationService(IClassificationService):
             "greetings",
         ]
 
-    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
     def classify_email(self, email: dict) -> dict:
         prompt = (
             f"Mail Title: {email.get('subject', '')}\n"
@@ -107,7 +100,7 @@ class AIClassificationService(IClassificationService):
                 }}
                 """
 
-        response = self.openai_client.ChatCompletion.create(
+        response = self.client.chat.completions.create(
             model="gpt-4o-mini",
             response_format={"type": "json_object"},
             messages=[

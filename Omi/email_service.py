@@ -52,7 +52,7 @@ class GmailService:
 
     async def fetch_emails(self, max_results: int = 5):
         loop = asyncio.get_event_loop()
-        messages = await loop.run_in_executor(None, api_client.fetch_messages, max_results)
+        messages = await loop.run_in_executor(None, self.api_client.fetch_messages, max_results)
         emails = []
         new_seen_ids = set()
         latest_email_time = self.last_seen_email_time
@@ -96,10 +96,9 @@ class GmailService:
     def stop_listening(self, listen_id: str):
         self.thread_manager.stop_thread(f"gmail_listener_{listen_id}")
 
-    @staticmethod
-    async def _pool_emails(stop_event, callback, interval, max_results):
+    async def _pool_emails(self, stop_event, callback, interval, max_results):
         while not stop_event.is_set():
-            emails = await fetch_emails_async(api_client, max_results)
+            emails = await self.fetch_emails(max_results)
             if emails:
                 callback(emails)
             await asyncio.sleep(interval)

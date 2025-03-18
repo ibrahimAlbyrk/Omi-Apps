@@ -1,3 +1,4 @@
+import asyncio
 import threading
 
 
@@ -29,9 +30,11 @@ class ThreadManager(IThreadManager):
         self.stop_flags[thread_id] = stop_event
 
         def wrapper_function(*arguments):
-            target_function(stop_event, *arguments)
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(target_function(stop_event, *arguments))
 
-        thread = threading.Thread(target=wrapper_function, args=args, daemon=True)
+        asyncio.create_task(wrapper_function(*args))
         self.threads[thread_id] = thread
         thread.start()
         return True
