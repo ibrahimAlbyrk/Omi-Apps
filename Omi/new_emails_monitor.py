@@ -1,5 +1,5 @@
-from classification_service import AIClassificationService
 from action_service import OmiActionService
+from classification_service import AIClassificationService
 
 classification_service = AIClassificationService()
 
