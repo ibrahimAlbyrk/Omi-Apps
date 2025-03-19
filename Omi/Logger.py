@@ -32,7 +32,7 @@ class SimpleFormatter(IFormatter):
 
 class AdvancedFormatter(IFormatter):
     def get_formatter(self) -> logging.Formatter:
-        return logging.Formatter('[%(levelname)s] [%(name)s] [%(asctime)s] => %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        return logging.Formatter('[%(asctime)s] [%(name)s] [%(levelname)s] => %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
 
 
 class FormatterFactory:
