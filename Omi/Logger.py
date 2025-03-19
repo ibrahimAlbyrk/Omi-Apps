@@ -66,7 +66,7 @@ class BaseLogger(ILogger):
 
 class ConsoleLogger(BaseLogger):
     def __init__(self, name: str, formatter: IFormatter):
-        super().__init__(f'ConsoleLogger-{name}')
+        super().__init__(name)
 
         handler = logging.StreamHandler()
         handler.setFormatter(formatter.get_formatter())
@@ -77,7 +77,7 @@ class ConsoleLogger(BaseLogger):
 
 class FileLogger(BaseLogger):
     def __init__(self, name: str, formatter: IFormatter, file_path: str):
-        super().__init__(f'FileLogger-{name}')
+        super().__init__(name)
 
         handler = logging.FileHandler(file_path)
         handler.setFormatter(formatter.get_formatter())
