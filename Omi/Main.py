@@ -121,7 +121,7 @@ def start_listening_mail(uid: str, credentials: str):
     gmail_service.start_listening(
         uid,
         callback=lambda emails: process_new_emails(uid, emails),
-        unread_only=True,
+        unread_only=False,
         interval=60,
         max_results=3
     )
