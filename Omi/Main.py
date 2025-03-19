@@ -1,5 +1,7 @@
 import os
 import pickle
+import Logger
+from Logger import LoggerType, FormatterType
 from email_service import GmailService
 from thread_manager import thread_manager
 from google_auth_oauthlib.flow import Flow
@@ -10,7 +12,7 @@ from Database import SQLiteDatabaseManager, UserRepository
 from classification_service import AIClassificationService
 from Config import APP_SECRET_KEY, GOOGLE_CLIENT_SECRET, REDIRECT_URI, GMAIL_SCOPES
 
-""" ⬇️ -------------- SETUP -------------- ⬇️ """
+" -------------- SETUP -------------- "
 #region setup
 app = Flask(__name__)
 app.secret_key = APP_SECRET_KEY
@@ -18,9 +20,11 @@ app.secret_key = APP_SECRET_KEY
 db_manager = SQLiteDatabaseManager()
 user_repository = UserRepository(db_manager)
 classification_service = AIClassificationService()
+
+logger = Logger.Manager("Main", FormatterType.ADVANCED, LoggerType.CONSOLE)
 #endregion
 
-""" ⬇️ -------------- WEBHOOK FUNCTIONS -------------- ⬇️ """
+" -------------- WEBHOOK FUNCTIONS -------------- "
 #region webhook
 @app.route("/login")
 def login():
@@ -83,8 +87,7 @@ def callback():
     if not uid:
         return "Error: There is no uid :(", 400
 
-    gmail_service = GmailService(credentials, thread_manager)
-    gmail_service.start_listening(uid, lambda emails: process_new_emails(uid, emails))
+    start_listening_mail(uid, credentials)
 
     # region Update database
     if not os.path.exists("tokens"):
@@ -111,9 +114,18 @@ def start_listening_all_users():
         with open(token_path, "rb") as token_file:
             credentials = pickle.load(token_file)
 
-        gmail_service = GmailService(credentials, thread_manager)
-        gmail_service.start_listening(uid, lambda emails: process_new_emails(uid, emails))
+        start_listening_mail(uid, credentials)
+
+def start_listening_mail(uid: str, credentials: str):
+    gmail_service = GmailService(credentials, thread_manager)
+    gmail_service.start_listening(
+        uid,
+        callback=lambda emails: process_new_emails(uid, emails),
+        unread_only=True,
+        interval=60,
+        max_results=3
+    )
 
 if __name__ == '__main__':
     start_listening_all_users()
-    app.run(host='127.0.0.1', port=5000, debug=True, ssl_context="adhoc")
+    app.run(host='127.0.0.1', port=5000, debug=False, ssl_context="adhoc")
