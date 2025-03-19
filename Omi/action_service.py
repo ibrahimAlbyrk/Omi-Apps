@@ -20,12 +20,15 @@ class OmiActionService(IActionService):
             "Content-Type": "application/json"
         }
         text = self._compose_email_text(email, classification)
+
+        date = email.get('date', datetime.now(timezone.utc).isoformat())
+        important = classification.get('important', None)
+
         data = {
-            "started_at": email.get('date'),
+            "started_at": date,
             "text": text,
             "text_source": "other_text",
-            "text_source_spec": f"email about {classification.get('important')}" if classification.get(
-                'important') else "email",
+            "text_source_spec": f"email about {important}" if important else "email",
             "language": self.language
         }
         try:
