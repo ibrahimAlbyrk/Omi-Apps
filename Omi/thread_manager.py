@@ -1,19 +1,28 @@
 import threading
+from abc import ABC, abstractmethod
 
 
-class IThreadManager:
+class IThreadManager(ABC):
+    @abstractmethod
     def start_thread(self, thread_id: str, target_function, args: tuple):
         raise NotImplementedError
 
+    @abstractmethod
+    def is_thread_running(self, thread_id: str) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
     def stop_thread(self, thread_id: str) -> bool:
         raise NotImplementedError
 
+    @abstractmethod
     def is_running(self, thread_id: str) -> bool:
         raise NotImplementedError
 
 
 class ThreadManager(IThreadManager):
     _instance = None
+
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super(ThreadManager, cls).__new__(cls)
@@ -21,8 +30,12 @@ class ThreadManager(IThreadManager):
             cls._instance.stop_flags = {}
         return cls._instance
 
+    def is_thread_running(self, thread_id: str) -> bool:
+        is_running =thread_id in self.threads and self.threads[thread_id].is_running()
+        return is_running
+
     def start_thread(self, thread_id: str, target_function, args: tuple):
-        if thread_id in self.threads and self.threads[thread_id].is_alive():
+        if self.is_thread_running(thread_id):
             return False
 
         stop_event = threading.Event()
@@ -45,5 +58,6 @@ class ThreadManager(IThreadManager):
 
     def is_running(self, thread_id: str) -> bool:
         return self.threads.get(thread_id, None) and self.threads[thread_id].is_alive()
+
 
 thread_manager = ThreadManager()
