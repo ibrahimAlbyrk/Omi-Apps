@@ -1,6 +1,7 @@
 import time
 import base64
 import Logger
+from thread_manager import IThreadManager
 from Logger import LoggerType, FormatterType
 from datetime import timezone
 from Database import SQLiteDatabaseManager, MailRepository
@@ -61,7 +62,7 @@ def decode_email_body(payload: dict) -> str:
     return "\n\n".join(decoded_parts) if decoded_parts else "[Content couldn't be read]"
 
 class GmailService:
-    def __init__(self, credentials, thread_manager):
+    def __init__(self, credentials, thread_manager: IThreadManager):
         self.api_client = GmailAPIClient(credentials)
         self.thread_manager = thread_manager
         self.last_seen_email_time = None
@@ -106,6 +107,9 @@ class GmailService:
         if emails:
             self.last_seen_email_time = latest_email_time
         return emails
+
+    def is_listening(self, uid: str) -> bool:
+        return self.thread_manager.is_thread_running(uid)
 
     def start_listening(self, uid: str, callback, unread_only: bool = True, interval: int = 60, max_results: int = 5):
         self.thread_manager.start_thread(
