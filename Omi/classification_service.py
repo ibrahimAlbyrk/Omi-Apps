@@ -3,6 +3,7 @@ import json
 import openai
 from Config import OPENAI_API_KEY
 
+
 class IClassificationService:
     def classify_email(self, email: dict) -> dict:
         raise NotImplementedError
@@ -47,7 +48,7 @@ class AIClassificationService(IClassificationService):
         )
         system_prompt = f"""
                 You are an advanced email classifier. Analyze the given email thoroughly based on:
-                
+
                 IMPORTANT CATEGORIES (exactly match the main purpose or intent): {', '.join(self.IMPORTANT_CATEGORIES)}
                 IGNORED CATEGORIES (emails that are promotional, generic, or low priority): {', '.join(self.IGNORED_CATEGORIES)}
 
@@ -76,7 +77,7 @@ class AIClassificationService(IClassificationService):
                 - "tags": Include precise tags reflecting email context, content, industry, and keywords clearly relevant to help categorize effectively.
                     Examples: ["finance", "HR", "development", "security", "marketing", "logistics", "urgent", "payment"]
                 - "reply_required": Set true only if email explicitly requests a reply, confirmation, or clearly needs response; otherwise false.
-                - "language": Identify and return the primary language clearly used in the email.
+                - "language": Identify and return the primary language clearly used in the email. Write languages in abbreviated form using ISO 639-1 codes.
                 - "ignored": Clearly identify exactly one IGNORED CATEGORY matched or None if none clearly match.
 
                 If both important and ignored categories seem applicable, always prioritize {"IMPORTANT" if self.always_important else "IGNORED"}.
