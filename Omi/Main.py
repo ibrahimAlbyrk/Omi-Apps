@@ -118,6 +118,10 @@ def start_listening_all_users():
 
 def start_listening_mail(uid: str, credentials: str):
     gmail_service = GmailService(credentials, thread_manager)
+
+    if gmail_service.is_listening(uid):
+        return
+
     gmail_service.start_listening(
         uid,
         callback=lambda emails: process_new_emails(uid, emails),
