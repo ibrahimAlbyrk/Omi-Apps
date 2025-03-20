@@ -74,6 +74,7 @@ class GmailService:
             messages = self.api_client.fetch_messages(max_results)
         emails = []
         latest_email_time = self.last_seen_email_time
+        messages.reverse()
         for msg in messages:
             msg_id = msg["id"]
 
