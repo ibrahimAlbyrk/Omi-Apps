@@ -3,12 +3,16 @@ import base64
 import Logger
 from Logger import LoggerType, FormatterType
 from datetime import timezone
+from Database import SQLiteDatabaseManager, MailRepository
 from email.utils import parsedate_to_datetime
 from googleapiclient.discovery import build
 
 logger = Logger.Manager("gmail_service",
                         FormatterType.ADVANCED,
                         LoggerType.CONSOLE)
+
+db_manager = SQLiteDatabaseManager()
+gmail_repository = MailRepository(db_manager)
 
 class IGmailAPIClient:
     def fetch_messages(self, max_results: int):
@@ -60,21 +64,22 @@ class GmailService:
     def __init__(self, credentials, thread_manager):
         self.api_client = GmailAPIClient(credentials)
         self.thread_manager = thread_manager
-        self.last_seen_email_ids = set()
         self.last_seen_email_time = None
 
-    def fetch_emails(self, unread_only: bool = True, max_results: int = 5):
+    def fetch_emails(self, uid: str, unread_only: bool = True, max_results: int = 5):
         if unread_only:
             messages = self.api_client.fetch_unread_messages(max_results)
         else:
             messages = self.api_client.fetch_messages(max_results)
         emails = []
-        new_seen_ids = set()
         latest_email_time = self.last_seen_email_time
         for msg in messages:
-            if msg["id"] in self.last_seen_email_ids:
+            msg_id = msg["id"]
+
+            if gmail_repository.is_email_processed(uid, msg_id):
                 continue
-            mail = self.api_client.get_message(msg["id"])
+
+            mail = self.api_client.get_message(msg_id)
             payload = mail.get("payload", {})
             headers = payload.get("headers", [])
             date = next((header["value"] for header in headers if header["name"].lower() == "date"), "No Date")
@@ -93,29 +98,30 @@ class GmailService:
                 "from": from_email,
                 "body": body,
             })
-            new_seen_ids.add(msg["id"])
             if date_obj and (latest_email_time is None or date_obj > latest_email_time):
                 latest_email_time = date_obj
+
+            gmail_repository.add_processed_email(uid, msg_id)
+
         if emails:
-            self.last_seen_email_ids.update(new_seen_ids)
             self.last_seen_email_time = latest_email_time
         return emails
 
-    def start_listening(self, listen_id: str, callback, unread_only: bool = True, interval: int = 60, max_results: int = 5):
-        logger.info(f"Started listening on {listen_id}")
+    def start_listening(self, uid: str, callback, unread_only: bool = True, interval: int = 60, max_results: int = 5):
+        logger.info(f"Started listening on {uid}")
         self.thread_manager.start_thread(
-            thread_id=f"gmail_listener_{listen_id}",
+            thread_id=f"gmail_listener_{uid}",
             target_function=self._pool_emails,
-            args=(callback, unread_only, interval, max_results)
+            args=(callback, uid, unread_only, interval, max_results)
         )
 
-    def stop_listening(self, listen_id: str):
-        logger.info(f"Stopped listening on {listen_id}")
-        self.thread_manager.stop_thread(f"gmail_listener_{listen_id}")
+    def stop_listening(self, uid: str):
+        logger.info(f"Stopped listening on {uid}")
+        self.thread_manager.stop_thread(f"gmail_listener_{uid}")
 
-    def _pool_emails(self, stop_event, callback, unread_only: bool, interval: int, max_results: int):
+    def _pool_emails(self, stop_event, callback, uid, unread_only: bool, interval: int, max_results: int):
         while not stop_event.is_set():
-            emails = self.fetch_emails(unread_only, max_results)
+            emails = self.fetch_emails(uid, unread_only, max_results)
             logger.info(f"{len(emails)} Emails fetched.")
             if emails:
                 logger.info("Callback worked.")
