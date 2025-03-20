@@ -108,7 +108,6 @@ class GmailService:
         return emails
 
     def start_listening(self, uid: str, callback, unread_only: bool = True, interval: int = 60, max_results: int = 5):
-        logger.info(f"Started listening on {uid}")
         self.thread_manager.start_thread(
             thread_id=f"gmail_listener_{uid}",
             target_function=self._pool_emails,
@@ -116,14 +115,11 @@ class GmailService:
         )
 
     def stop_listening(self, uid: str):
-        logger.info(f"Stopped listening on {uid}")
         self.thread_manager.stop_thread(f"gmail_listener_{uid}")
 
     def _pool_emails(self, stop_event, callback, uid, unread_only: bool, interval: int, max_results: int):
         while not stop_event.is_set():
             emails = self.fetch_emails(uid, unread_only, max_results)
-            logger.info(f"{len(emails)} Emails fetched.")
             if emails:
-                logger.info("Callback worked.")
                 callback(emails)
             time.sleep(interval)
