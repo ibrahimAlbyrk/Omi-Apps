@@ -26,7 +26,7 @@ class ISQLiteDatabaseManager:
 
 class SQLiteDatabaseManager(ISQLiteDatabaseManager):
     _instance = None
-    _lock = Lock()
+    _lock = threading.Lock()
 
     def __new__(cls, db_path="database.db"):
         with cls._lock:
