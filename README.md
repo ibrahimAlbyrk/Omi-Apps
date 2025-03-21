@@ -56,6 +56,9 @@ pip install -r requirements.txt
 Create a `.env` file and populate it as follows:
 
 ```env
+# APP
+APP_SECRET_KEY=your_app_secret_key
+
 # OpenAI API Key
 OPENAI_API_KEY=your_openai_api_key
 
@@ -108,8 +111,20 @@ python Main.py
 
 ## 📌 API Usage
 
+📍 **Enter**  
+`GET /?uid=your_user_id`
+
 📍 **Login**  
-`GET /login?uid=your_user_id`  
+`POST /Login` uid, hadling in session
 
 📍 **Logout**  
 `POST /logout?uid=your_user_id`
+
+📍 **Get Settings**  
+`GET /get-settings?uid=your_user_id`
+
+📍 **Update Settings**  
+`POST /update-settings?uid=your_user_id`
+
+📍 **Setup Complete**  
+`GET /setup-complete?uid=your_user_id`
