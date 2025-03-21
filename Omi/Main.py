@@ -53,7 +53,7 @@ def terms_of_service():
 
 @app.route("/login", methods=["POST"])
 def login():
-    uid = request.args.get("uid")
+    uid = session["uid"]
 
     if not uid:
         return ERROR_RESPONSES["NO_UID"]
