@@ -101,7 +101,9 @@ class UserRepository(IUserRepository):
         query = """
         CREATE TABLE IF NOT EXISTS users (
             uid TEXT PRIMARY KEY,
-            google_credentials TEXT NOT NULL
+            google_credentials TEXT NOT NULL,
+            mail_check_interval INTEGER DEFAULT 60,
+            mail_count INTEGER DEFAULT 3
         );
         """
         self.db.execute(query)
@@ -119,6 +121,19 @@ class UserRepository(IUserRepository):
         results = self.db.fetch_all(query)
         return [{"uid": row["uid"], "google_credentials": row["google_credentials"]} for row in results]
 
+    def get_user(self, uid):
+        query = "SELECT * FROM users WHERE uid = ?;"
+        result = self.db.fetch_one(query, (uid,))
+        if result:
+            return {
+                "uid": result["uid"],
+                "google_credentials": result["google_credentials"],
+                "mail_check_interval": result["mail_check_interval"],
+                "mail_count": result["mail_count"]
+            }
+
+        return None
+
     def delete_user(self, uid: str):
         query = "DELETE FROM users WHERE uid = ?;"
         self.db.execute(query, (uid,))
@@ -131,6 +146,38 @@ class UserRepository(IUserRepository):
     def update_credentials(self, uid: str, new_google_credentials: str):
         query = "UPDATE users SET google_credentials = ? WHERE uid = ?;"
         self.db.execute(query, (new_google_credentials, uid))
+
+    def update_user_settings(self, uid: str, mail_interval: int, mail_count: int):
+        self.db.execute(
+            "UPDATE users SET mail_check_interval = ?, mail_count = ? WHERE uid = ?",
+            (mail_interval, mail_count, uid)
+        )
+
+    def get_user_settings(self, uid: str) -> dict:
+        result = self.db.fetch_one(
+            "SELECT mail_check_interval, mail_count FROM users WHERE uid = ?", (uid,)
+        )
+        if result:
+            return {
+                "mail_check_interval": result["mail_check_interval"],
+                "mail_count": result["mail_count"]
+            }
+        return {
+            "mail_check_interval": 60,
+            "mail_count": 3
+        }
+
+    def get_mail_check_interval(self, uid: str) -> int:
+        result = self.db.fetch_one(
+            "SELECT mail_check_interval FROM users WHERE uid = ?", (uid,)
+        )
+        return result["mail_check_interval"] if result else 60
+
+    def get_mail_count(self, uid: str) -> int:
+        result = self.db.fetch_one(
+            "SELECT mail_count FROM users WHERE uid = ?", (uid,)
+        )
+        return result["mail_count"] if result else 3
 
 
 class IMailRepository(ABC):
