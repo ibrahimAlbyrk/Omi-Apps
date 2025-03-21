@@ -7,10 +7,10 @@ from thread_manager import thread_manager
 from google_auth_oauthlib.flow import Flow
 from action_service import OmiActionService
 from new_emails_monitor import process_new_emails
-from flask import Flask, request, redirect, session
+from flask import Flask, request, redirect, session, render_template, jsonify
 from Database import SQLiteDatabaseManager, UserRepository
 from classification_service import AIClassificationService
-from Config import APP_SECRET_KEY, GOOGLE_CLIENT_SECRET, REDIRECT_URI, GMAIL_SCOPES
+from Config import APP_SECRET_KEY, GOOGLE_CLIENT_SECRET, REDIRECT_URI, GMAIL_SCOPES, BASE_URI
 
 " -------------- SETUP -------------- "
 #region setup
@@ -26,9 +26,23 @@ logger = Logger.Manager("Main", FormatterType.ADVANCED, LoggerType.CONSOLE)
 
 " -------------- WEBHOOK FUNCTIONS -------------- "
 #region webhook
-@app.route("/login")
-def login():
+@app.route("/")
+def index():
     uid = request.args.get("uid")
+
+    if not uid:
+        return "OPS! There is no UID :(", 400
+
+    session["uid"] = uid
+
+    if user_repository.has_user(uid):
+        return redirect("/logged-in")
+
+    return render_template("index.html")
+
+@app.route("/login", methods=["POST"])
+def login():
+    uid = session["uid"]
 
     if not uid:
         return "OPS! There is no UID :(", 400
@@ -39,26 +53,29 @@ def login():
         redirect_uri=REDIRECT_URI
     )
     auth_url, _ = flow.authorization_url(prompt="consent")
-    session["uid"] = uid
-    return redirect(auth_url)
+    return jsonify({"auth_url": auth_url})
 
+@app.route("/logged-in")
+def logged_in():
+    return render_template("index.html")
 
 @app.route("/logout", methods=["POST"])
 def logout():
-    uid = request.args.get("uid")
+    uid = session["uid"]
+    print(uid)
     if not uid:
-        return "OPS! There is no UID :(", 400
+        return "OPS! There is no UID :(", 401
 
     # region Get Credentials
     token_path = user_repository.get_credentials(uid)
     if not token_path:
-        return "Error: No stored credentials.", 400
+        return "Error: No stored credentials.", 402
 
     with open(token_path, "rb") as token_file:
         credentials = pickle.load(token_file)
 
     if not credentials or not credentials.valid:
-        return "Error: No stored credentials.", 400
+        return "Error: No stored credentials.", 403
     # endregion
 
     # region core logout
@@ -69,7 +86,9 @@ def logout():
     gmail_service.stop_listening(uid)
     # endregion
 
-    return "Logged out successfully."
+    url = f"{BASE_URI}/?uid={uid}"
+
+    return jsonify({"url": url})
 
 
 @app.route("/gmail-callback")
@@ -101,7 +120,20 @@ def callback():
         user_repository.add_user(uid, token_path)
     # endregion
 
-    return "Login is successful!"
+    return redirect("/logged-in")
+
+
+@app.route("/setup-complete")
+def is_setup_completed():
+    uid = request.args.get("uid")
+
+    if not uid:
+        return "OPS! There is no UID :(", 400
+
+    has_user = user_repository.has_user(uid)
+
+    return {'is_setup_completed': has_user}
+
 #endregion
 
 def start_listening_all_users():
@@ -120,6 +152,7 @@ def start_listening_mail(uid: str, credentials: str):
     gmail_service = GmailService(credentials, thread_manager)
 
     if gmail_service.is_listening(uid):
+        print('listening')
         return
 
     gmail_service.start_listening(
