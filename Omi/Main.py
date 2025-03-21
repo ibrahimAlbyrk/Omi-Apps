@@ -151,13 +151,21 @@ def get_settings():
     if not uid:
         return ERROR_RESPONSES["MISSING_UID"]
 
-    user = user_repository.get_user_settings(uid)
-    if not user:
-        return jsonify({"mail_check_interval": 60, "mail_count": 3})
+    settings = user_repository.get_user_settings(uid)
+    if not settings:
+        return jsonify(
+            {
+                "mail_check_interval": 60,
+                "mail_count": 3,
+                "important_categories" : AIClassificationService.DEFAULT_IMPORTANT_CATEGORIES,
+                "ignored_categories" : AIClassificationService.DEFAULT_IGNORED_CATEGORIES,
+             })
 
     return jsonify({
-        "mail_check_interval": user["mail_check_interval"],
-        "mail_count": user["mail_count"]
+        "mail_check_interval": settings["mail_check_interval"],
+        "mail_count": settings["mail_count"],
+        "important_categories": settings["important_categories"],
+        "ignored_categories": settings["ignored_categories"],
     })
 
 
@@ -170,6 +178,8 @@ def update_settings():
     data = request.get_json()
     mail_interval = data.get("mail_check_interval")
     mail_count = data.get("mail_count")
+    important_categories = data.get("important_categories")
+    ignored_categories = data.get("ignored_categories")
 
     if not isinstance(mail_interval, int) or not isinstance(mail_count, int):
         return ErrorResponses.INVALID_DATA
@@ -184,7 +194,7 @@ def update_settings():
     gmail_service = GmailService(credentials, thread_manager)
     gmail_service.stop_listening(uid)
 
-    user_repository.update_user_settings(uid, mail_interval, mail_count)
+    user_repository.update_user_settings(uid, mail_interval, mail_count, important_categories, ignored_categories)
 
     start_listening_mail(uid, credentials)
 
@@ -234,10 +244,12 @@ def start_listening_mail(uid: str, credentials: str):
 
     interval = settings["mail_check_interval"]
     max_results = settings["mail_count"]
+    important_categories = settings["important_categories"]
+    ignored_categories = settings["ignored_categories"]
 
     gmail_service.start_listening(
         uid,
-        callback=lambda emails: process_new_emails(uid, emails),
+        callback=lambda emails: process_new_emails(uid, emails, important_categories, ignored_categories),
         unread_only=False,
         interval=interval,
         max_results=max_results

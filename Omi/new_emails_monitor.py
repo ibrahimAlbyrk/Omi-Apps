@@ -10,10 +10,10 @@ logger = Logger.Manager("Emails Monitor",
 classification_service = AIClassificationService()
 
 
-def process_new_emails(uid: str, emails: []):
+def process_new_emails(uid: str, emails: [], important_categories: [] = None, ignored_categories: [] = None):
     # count: int = 0
     for email in emails:
-        classification = classification_service.classify_email(email)
+        classification = classification_service.classify_email(email, important_categories, ignored_categories)
         answer = classification.get("answer", False)
         language = classification.get("language", "en")
         if answer:

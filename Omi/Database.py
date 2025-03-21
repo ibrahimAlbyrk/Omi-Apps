@@ -1,9 +1,12 @@
+import json
 import sqlite3
 import threading
 
 import Logger
 from Logger import LoggerType, FormatterType
 from abc import ABC, abstractmethod
+
+from classification_service import AIClassificationService
 
 logger = Logger.Manager("Database",
                         FormatterType.ADVANCED,
@@ -96,17 +99,27 @@ class UserRepository(IUserRepository):
     def __init__(self, db_manager: ISQLiteDatabaseManager):
         self.db = db_manager
         self.create_table()
+        self.add_missing_columns()
 
     def create_table(self):
-        query = """
+        query = f"""
         CREATE TABLE IF NOT EXISTS users (
             uid TEXT PRIMARY KEY,
             google_credentials TEXT NOT NULL,
             mail_check_interval INTEGER DEFAULT 60,
-            mail_count INTEGER DEFAULT 3
+            mail_count INTEGER DEFAULT 3,
+            important_categories TEXT DEFAULT '{json.dumps(AIClassificationService.DEFAULT_IMPORTANT_CATEGORIES)}',
+            ignored_categories TEXT DEFAULT '{json.dumps(AIClassificationService.DEFAULT_IGNORED_CATEGORIES)}'
         );
         """
         self.db.execute(query)
+
+    def add_missing_columns(self):
+        columns = [row["name"] for row in self.db.fetch_all("PRAGMA table_info(users)")]
+        if 'important_categories' not in columns:
+            self.db.execute("ALTER TABLE users ADD COLUMN important_categories TEXT DEFAULT '[]'")
+        if 'ignored_categories' not in columns:
+            self.db.execute("ALTER TABLE users ADD COLUMN ignored_categories TEXT DEFAULT '[]'")
 
     def add_user(self, uid: str, google_credentials: str = None):
         query = "INSERT INTO users (uid, google_credentials) VALUES (?, ?)"
@@ -147,24 +160,49 @@ class UserRepository(IUserRepository):
         query = "UPDATE users SET google_credentials = ? WHERE uid = ?;"
         self.db.execute(query, (new_google_credentials, uid))
 
-    def update_user_settings(self, uid: str, mail_interval: int, mail_count: int):
+    def update_user_settings(self, uid: str, mail_interval: int, mail_count: int, important_categories: list, ignored_categories: list):
         self.db.execute(
-            "UPDATE users SET mail_check_interval = ?, mail_count = ? WHERE uid = ?",
-            (mail_interval, mail_count, uid)
+            """
+            UPDATE users
+            SET mail_check_interval = ?,
+                mail_count = ?,
+                important_categories = ?,
+                ignored_categories = ?
+            WHERE uid = ?
+            """,
+            (mail_interval, mail_count,
+             json.dumps(important_categories), json.dumps(ignored_categories),
+             uid)
         )
 
     def get_user_settings(self, uid: str) -> dict:
         result = self.db.fetch_one(
-            "SELECT mail_check_interval, mail_count FROM users WHERE uid = ?", (uid,)
+            """
+            SELECT
+                mail_check_interval,
+                mail_count,
+                important_categories,
+                ignored_categories
+            FROM users WHERE uid = ?
+            """, (uid,)
         )
         if result:
+            mail_check_interval = result["mail_check_interval"]
+            mail_count = result["mail_count"]
+            important_categories = result["important_categories"]
+            ignored_categories = result["ignored_categories"]
+
             return {
-                "mail_check_interval": result["mail_check_interval"],
-                "mail_count": result["mail_count"]
+                "mail_check_interval": mail_check_interval,
+                "mail_count": mail_count,
+                "important_categories": json.loads(important_categories) if important_categories else AIClassificationService.DEFAULT_IMPORTANT_CATEGORIES,
+                "ignored_categories": json.loads(ignored_categories) if ignored_categories else AIClassificationService.DEFAULT_IGNORED_CATEGORIES,
             }
         return {
             "mail_check_interval": 60,
-            "mail_count": 3
+            "mail_count": 3,
+            "important_categories": AIClassificationService.DEFAULT_IMPORTANT_CATEGORIES,
+            "ignored_categories": AIClassificationService.DEFAULT_IGNORED_CATEGORIES,
         }
 
     def get_mail_check_interval(self, uid: str) -> int:

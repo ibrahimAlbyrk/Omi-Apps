@@ -5,42 +5,48 @@ from Config import OPENAI_API_KEY
 
 
 class IClassificationService:
-    def classify_email(self, email: dict) -> dict:
+    def classify_email(self, email: dict, important_categories: list, ignored_categories: list) -> dict:
         raise NotImplementedError
 
 
 class AIClassificationService(IClassificationService):
+    DEFAULT_IMPORTANT_CATEGORIES = [
+        "urgent",
+        "meeting",
+        "invoice",
+        "payment due",
+        "project update",
+        "Github",
+        "security alert",
+        "password reset",
+        "account verification",
+        "legal notice",
+        "deadline reminder",
+        "contract",
+        "shipping"
+    ]
+
+    DEFAULT_IGNORED_CATEGORIES = [
+        "newsletter",
+        "promotion",
+        "social media",
+        "spam",
+        "survey",
+        "event invitation",
+        "job alert",
+        "greetings",
+    ]
+
     def __init__(self):
         self.client = openai.Client(api_key=OPENAI_API_KEY)
         self.always_important = False
-        self.IMPORTANT_CATEGORIES = [
-            "urgent",
-            "meeting",
-            "invoice",
-            "payment due",
-            "project update",
-            "Github",
-            "security alert",
-            "password reset",
-            "account verification",
-            "legal notice",
-            "deadline reminder",
-            "contract",
-            "shipping"
-        ]
 
-        self.IGNORED_CATEGORIES = [
-            "newsletter",
-            "promotion",
-            "social media",
-            "spam",
-            "survey",
-            "event invitation",
-            "job alert",
-            "greetings",
-        ]
+    def classify_email(self, email: dict, important_categories = None, ignored_categories = None) -> dict:
+        if ignored_categories is None:
+            ignored_categories = DEFAULT_IGNORED_CATEGORIES
+        if important_categories is None:
+            important_categories = DEFAULT_IMPORTANT_CATEGORIES
 
-    def classify_email(self, email: dict) -> dict:
         prompt = (
             f"Mail Title: {email.get('subject', '')}\n"
             f"From: {email.get('from', '')}\n"
@@ -49,8 +55,8 @@ class AIClassificationService(IClassificationService):
         system_prompt = f"""
                 You are an advanced email classifier. Analyze the given email thoroughly based on:
 
-                IMPORTANT CATEGORIES (exactly match the main purpose or intent): {', '.join(self.IMPORTANT_CATEGORIES)}
-                IGNORED CATEGORIES (emails that are promotional, generic, or low priority): {', '.join(self.IGNORED_CATEGORIES)}
+                IMPORTANT CATEGORIES (exactly match the main purpose or intent): {', '.join(important_categories)}
+                IGNORED CATEGORIES (emails that are promotional, generic, or low priority): {', '.join(ignored_categories)}
 
                 Classify the email with precision according to these instructions:
                 - "answer": Set true if email clearly matches an IMPORTANT CATEGORY; otherwise false.
