@@ -11,7 +11,7 @@ classification_service = AIClassificationService()
 
 
 def process_new_emails(uid: str, emails: []):
-    count: int = 0
+    # count: int = 0
     for email in emails:
         classification = classification_service.classify_email(email)
         answer = classification.get("answer", False)
@@ -21,7 +21,7 @@ def process_new_emails(uid: str, emails: []):
             success, status_code = action_service.send_email(email, classification)
             if not success:
                 print(f"Failed to send email to Omi. HTTP Status: {status_code}")
-            else:
-                count += 1
+            # else:
+            #     count += 1
 
-    logger.info(f"Processed {count} new emails")
+    # logger.info(f"Processed {count} new emails")
