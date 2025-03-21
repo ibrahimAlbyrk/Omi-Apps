@@ -36,7 +36,7 @@ def index():
     session["uid"] = uid
 
     if user_repository.has_user(uid):
-        return redirect("/logged-in")
+        return redirect(f"/logged-in?uid={uid}")
 
     return render_template("index.html")
 
@@ -53,11 +53,17 @@ def login():
         redirect_uri=REDIRECT_URI
     )
     auth_url, _ = flow.authorization_url(prompt="consent")
-    return jsonify({"auth_url": auth_url})
+    response = jsonify({
+        "auth_url": auth_url,
+        "uid": uid
+    })
+    return response
 
 @app.route("/logged-in")
 def logged_in():
-    return render_template("index.html")
+    uid = request.args.get("uid")
+    session["uid"] = uid
+    return render_template("index.html", uid=uid)
 
 @app.route("/logout", methods=["POST"])
 def logout():
@@ -123,6 +129,52 @@ def callback():
     return redirect("/logged-in")
 
 
+@app.route("/get-settings", methods=["GET"])
+def get_settings():
+    uid = session.get("uid")
+    if not uid:
+        return "Missing UID", 400
+
+    user = user_repository.get_user_settings(uid)
+    if not user:
+        return jsonify({"mail_check_interval": 60, "mail_count": 3})
+
+    return jsonify({
+        "mail_check_interval": user["mail_check_interval"],
+        "mail_count": user["mail_count"]
+    })
+
+
+@app.route("/update-settings", methods=["POST"])
+def update_settings():
+    uid = session.get("uid")
+    if not uid:
+        return "Missing UID", 400
+
+    data = request.get_json()
+    mail_interval = data.get("mail_check_interval")
+    mail_count = data.get("mail_count")
+
+    if not isinstance(mail_interval, int) or not isinstance(mail_count, int):
+        return "Invalid data types", 400
+
+    user = user_repository.get_user(uid)
+
+    token_path = user["google_credentials"]
+
+    with open(token_path, "rb") as token_file:
+        credentials = pickle.load(token_file)
+
+    gmail_service = GmailService(credentials, thread_manager)
+    gmail_service.stop_listening(uid)
+
+    user_repository.update_user_settings(uid, mail_interval, mail_count)
+
+    start_listening_mail(uid, credentials)
+
+    return jsonify({"status": "success"})
+
+
 @app.route("/setup-complete")
 def is_setup_completed():
     uid = request.args.get("uid")
@@ -133,35 +185,48 @@ def is_setup_completed():
     has_user = user_repository.has_user(uid)
 
     return {'is_setup_completed': has_user}
-
 #endregion
+
 
 def start_listening_all_users():
     users = user_repository.get_all_users()
 
     for user in users:
-        uid = user["uid"]
-        token_path = user["google_credentials"]
+        start_listening_user(user)
 
-        with open(token_path, "rb") as token_file:
-            credentials = pickle.load(token_file)
 
-        start_listening_mail(uid, credentials)
+def start_listening_user(user):
+    if not user:
+        return
+
+    uid = user["uid"]
+    token_path = user["google_credentials"]
+
+    with open(token_path, "rb") as token_file:
+        credentials = pickle.load(token_file)
+
+    start_listening_mail(uid, credentials)
+
 
 def start_listening_mail(uid: str, credentials: str):
     gmail_service = GmailService(credentials, thread_manager)
 
     if gmail_service.is_listening(uid):
-        print('listening')
         return
+
+    settings = user_repository.get_user_settings(uid)
+
+    interval = settings["mail_check_interval"]
+    max_results = settings["mail_count"]
 
     gmail_service.start_listening(
         uid,
         callback=lambda emails: process_new_emails(uid, emails),
         unread_only=False,
-        interval=60,
-        max_results=3
+        interval=interval,
+        max_results=max_results
     )
+
 
 if __name__ == '__main__':
     start_listening_all_users()
