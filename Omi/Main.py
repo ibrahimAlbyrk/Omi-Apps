@@ -10,7 +10,7 @@ from new_emails_monitor import process_new_emails
 from flask import Flask, request, redirect, session, render_template, jsonify
 from Database import SQLiteDatabaseManager, UserRepository
 from classification_service import AIClassificationService
-from Config import APP_SECRET_KEY, GOOGLE_CLIENT_SECRET, REDIRECT_URI, GMAIL_SCOPES, BASE_URI, ErrorResponses
+from Config import APP_SECRET_KEY, GOOGLE_CLIENT_SECRET, REDIRECT_URI, GMAIL_SCOPES, BASE_URI, ERROR_RESPONSES
 
 " -------------- SETUP -------------- "
 #region setup
@@ -31,7 +31,7 @@ def index():
     uid = request.args.get("uid")
 
     if not uid:
-        return ErrorResponses.NO_UID
+        return ERROR_RESPONSES["NO_UID"]
 
     session["uid"] = uid
 
@@ -40,12 +40,23 @@ def index():
 
     return render_template("index.html")
 
+
+@app.route("/privacy-policy")
+def privacy_policy():
+    return render_template("index.html")
+
+
+@app.route("/terms-of-service")
+def terms_of_service():
+    return render_template("index.html")
+
+
 @app.route("/login", methods=["POST"])
 def login():
     uid = session["uid"]
 
     if not uid:
-        return ErrorResponses.NO_UID
+        return ERROR_RESPONSES["NO_UID"]
 
     flow = Flow.from_client_secrets_file(
         client_secrets_file=GOOGLE_CLIENT_SECRET,
@@ -69,19 +80,19 @@ def logged_in():
 def logout():
     uid = session["uid"]
     if not uid:
-        return ErrorResponses.NO_UID
+        return ERROR_RESPONSES["NO_UID"]
 
     # region Get Credentials
     token_path = user_repository.get_credentials(uid)
     if not token_path:
-        return ErrorResponses.NO_CREDENTIALS
+        return ERROR_RESPONSES["NO_CREDENTIALS"]
 
     with open(token_path, "rb") as token_file:
         credentials = pickle.load(token_file)
 
     if not credentials:
         os.remove(token_path)
-        return ErrorResponses.NO_VALID_CREDENTIALS
+        return ERROR_RESPONSES["NO_VALID_CREDENTIALS"]
     # endregion
 
     # region core logout
@@ -108,10 +119,10 @@ def callback():
     credentials = flow.credentials
 
     if not session:
-        return ErrorResponses.SESSION_EXPIRED
+        return ERROR_RESPONSES["SESSION_EXPIRED"]
     uid = session.get("uid")
     if not uid:
-        return ErrorResponses.NO_UID
+        return ERROR_RESPONSES["NO_UID"]
 
     start_listening_mail(uid, credentials)
 
@@ -127,14 +138,14 @@ def callback():
         user_repository.add_user(uid, token_path)
     # endregion
 
-    return redirect("/logged-in")
+    return redirect(f"/logged-in?uid={uid}")
 
 
 @app.route("/get-settings", methods=["GET"])
 def get_settings():
     uid = request.args.get("uid")
     if not uid:
-        return ErrorResponses.MISSING_UID
+        return ERROR_RESPONSES["MISSING_UID"]
 
     user = user_repository.get_user_settings(uid)
     if not user:
@@ -150,7 +161,7 @@ def get_settings():
 def update_settings():
     uid = request.args.get("uid")
     if not uid:
-        return ErrorResponses.MISSING_UID
+        return ERROR_RESPONSES["MISSING_UID"]
 
     data = request.get_json()
     mail_interval = data.get("mail_check_interval")
@@ -181,7 +192,7 @@ def is_setup_completed():
     uid = request.args.get("uid")
 
     if not uid:
-        return ErrorResponses.NO_UID
+        return ERROR_RESPONSES["NO_UID"]
 
     has_user = user_repository.has_user(uid)
 

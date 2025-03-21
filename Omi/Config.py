@@ -1,5 +1,4 @@
 import os
-from enum import Enum
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -23,12 +22,12 @@ GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 # FILES
 GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
-
 # WEBHOOK
-class ErrorResponses(Enum):
-    NO_UID = ("OPS! There is no UID :(", 401)
-    NO_CREDENTIALS = ("Error: No stored credentials.", 402)
-    NO_VALID_CREDENTIALS = ("Error: No valid credentials found.", 403)
-    SESSION_EXPIRED = ("Error:This session is over :(", 405)
-    INVALID_DATA = ("Invalid data types", 406)
-    MISSING_UID = ("Missing UID", 407)
+ERROR_RESPONSES = {
+    "NO_UID": ("OPS! There is no UID :(", 401),
+    "NO_CREDENTIALS": ("Error: No stored credentials.", 402),
+    "NO_VALID_CREDENTIALS": ("Error: No valid credentials found.", 403),
+    "SESSION_EXPIRED": ("Error:This session is over :(", 405),
+    "INVALID_DATA": ("Invalid data types", 406),
+    "MISSING_UID": ("Missing UID", 407)
+}
