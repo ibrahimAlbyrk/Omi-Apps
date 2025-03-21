@@ -75,7 +75,7 @@ def logged_in():
     uid = request.args.get("uid")
 
     if not uid:
-        return
+        return ERROR_RESPONSES["NO_UID"]
 
     session["uid"] = uid
     return render_template("index.html", uid=uid)
