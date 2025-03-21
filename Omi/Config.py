@@ -3,6 +3,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+BASE_URI = "https://mailmate.omi-wroom.org"
+
 # APP
 APP_SECRET_KEY = os.getenv("APP_SECRET_KEY")
 
