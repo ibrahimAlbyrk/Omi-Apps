@@ -73,6 +73,10 @@ def login():
 @app.route("/logged-in")
 def logged_in():
     uid = request.args.get("uid")
+
+    if not uid:
+        return
+
     session["uid"] = uid
     return render_template("index.html", uid=uid)
 
