@@ -10,7 +10,7 @@ from new_emails_monitor import process_new_emails
 from flask import Flask, request, redirect, session, render_template, jsonify
 from Database import SQLiteDatabaseManager, UserRepository
 from classification_service import AIClassificationService
-from Config import APP_SECRET_KEY, GOOGLE_CLIENT_SECRET, REDIRECT_URI, GMAIL_SCOPES, BASE_URI
+from Config import APP_SECRET_KEY, GOOGLE_CLIENT_SECRET, REDIRECT_URI, GMAIL_SCOPES, BASE_URI, ErrorResponses
 
 " -------------- SETUP -------------- "
 #region setup
@@ -31,7 +31,7 @@ def index():
     uid = request.args.get("uid")
 
     if not uid:
-        return "OPS! There is no UID :(", 400
+        return ErrorResponses.NO_UID
 
     session["uid"] = uid
 
@@ -45,7 +45,7 @@ def login():
     uid = session["uid"]
 
     if not uid:
-        return "OPS! There is no UID :(", 400
+        return ErrorResponses.NO_UID
 
     flow = Flow.from_client_secrets_file(
         client_secrets_file=GOOGLE_CLIENT_SECRET,
@@ -68,24 +68,23 @@ def logged_in():
 @app.route("/logout", methods=["POST"])
 def logout():
     uid = session["uid"]
-    print(uid)
     if not uid:
-        return "OPS! There is no UID :(", 401
+        return ErrorResponses.NO_UID
 
     # region Get Credentials
     token_path = user_repository.get_credentials(uid)
     if not token_path:
-        return "Error: No stored credentials.", 402
+        return ErrorResponses.NO_CREDENTIALS
 
     with open(token_path, "rb") as token_file:
         credentials = pickle.load(token_file)
 
-    if not credentials or not credentials.valid:
-        return "Error: No stored credentials.", 403
+    if not credentials:
+        os.remove(token_path)
+        return ErrorResponses.NO_VALID_CREDENTIALS
     # endregion
 
     # region core logout
-    session.pop("uid", None)
     user_repository.delete_user(uid)
 
     gmail_service = GmailService(credentials, thread_manager)
@@ -108,9 +107,11 @@ def callback():
     flow.fetch_token(authorization_response=request.url)
     credentials = flow.credentials
 
+    if not session:
+        return ErrorResponses.SESSION_EXPIRED
     uid = session.get("uid")
     if not uid:
-        return "Error: There is no uid :(", 400
+        return ErrorResponses.NO_UID
 
     start_listening_mail(uid, credentials)
 
@@ -131,9 +132,9 @@ def callback():
 
 @app.route("/get-settings", methods=["GET"])
 def get_settings():
-    uid = session.get("uid")
+    uid = request.args.get("uid")
     if not uid:
-        return "Missing UID", 400
+        return ErrorResponses.MISSING_UID
 
     user = user_repository.get_user_settings(uid)
     if not user:
@@ -147,16 +148,16 @@ def get_settings():
 
 @app.route("/update-settings", methods=["POST"])
 def update_settings():
-    uid = session.get("uid")
+    uid = request.args.get("uid")
     if not uid:
-        return "Missing UID", 400
+        return ErrorResponses.MISSING_UID
 
     data = request.get_json()
     mail_interval = data.get("mail_check_interval")
     mail_count = data.get("mail_count")
 
     if not isinstance(mail_interval, int) or not isinstance(mail_count, int):
-        return "Invalid data types", 400
+        return ErrorResponses.INVALID_DATA
 
     user = user_repository.get_user(uid)
 
@@ -180,7 +181,7 @@ def is_setup_completed():
     uid = request.args.get("uid")
 
     if not uid:
-        return "OPS! There is no UID :(", 400
+        return ErrorResponses.NO_UID
 
     has_user = user_repository.has_user(uid)
 
