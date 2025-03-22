@@ -210,11 +210,6 @@ def convert_to_facts():
 
     data = request.get_json()
 
-    convert_type: str = data.get("type", "")
-
-    if not convert_type:
-        return ERROR_RESPONSES["WENT_WRONG"]
-
     user = user_repository.get_user(uid)
 
     token_path = user["google_credentials"]
@@ -222,22 +217,13 @@ def convert_to_facts():
     with open(token_path, "rb") as token_file:
         credentials = pickle.load(token_file)
 
-    facts = []
+    mail_count_raw = data.get("count")
+    try:
+        mail_count = int(mail_count_raw)
+    except (ValueError, TypeError):
+        return ERROR_RESPONSES["INVALID_MAIL_COUNT"]
 
-    if convert_type == "date-range":
-        start_date = data.get("startDate")
-        end_date = data.get("endDate")
-
-        facts = facts_converter.convert_with_date_range(credentials, thread_manager, start_date, end_date)
-
-    elif convert_type == "mail-count":
-        mail_count_raw = data.get("count")
-        try:
-            mail_count = int(mail_count_raw)
-        except (ValueError, TypeError):
-            return ERROR_RESPONSES["INVALID_MAIL_COUNT"]
-
-        facts = facts_converter.convert_with_email_count(credentials, thread_manager, mail_count)
+    facts = facts_converter.convert_with_email_count(uid, credentials, thread_manager, mail_count)
 
     return jsonify({"facts": facts})
 
@@ -297,5 +283,5 @@ def start_listening_mail(uid: str, credentials: str):
 
 
 if __name__ == '__main__':
-    start_listening_all_users()
+    # start_listening_all_users()
     app.run(host='127.0.0.1', port=5000, debug=False, ssl_context="adhoc")

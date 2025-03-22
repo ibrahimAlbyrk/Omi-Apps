@@ -3,7 +3,7 @@ import base64
 import Logger
 from thread_manager import IThreadManager
 from Logger import LoggerType, FormatterType
-from datetime import timezone
+from datetime import timezone, datetime, timedelta
 from Database import SQLiteDatabaseManager, MailRepository
 from email.utils import parsedate_to_datetime
 from googleapiclient.discovery import build
@@ -31,16 +31,25 @@ class GmailAPIClient(IGmailAPIClient):
         page_token = None
 
         while True:
-            request = self.service.users().messages().list(
+            fetch_count = 500 if max_results < 0 else min(max_results - len(messages), 500)
+
+            response = self.service.users().messages().list(
                 userId='me',
                 q=query,
-                maxResults=500 if max_results < 1 else max_results,
+                maxResults=fetch_count,
                 pageToken=page_token
-            )
-            response = request.execute()
+            ).execute()
 
-            batch = response.get('messages', [])
-            messages.extend(batch)
+            message_ids = response.get('messages', [])
+            if not message_ids:
+                break
+
+            for msg in message_ids:
+                msg_detail = self.service.users().messages().get(userId='me', id=msg['id']).execute()
+                messages.append(msg_detail)
+
+                if 0 <= max_results <= len(messages):
+                    return messages
 
             page_token = response.get('nextPageToken')
             if not page_token:
@@ -62,8 +71,16 @@ class GmailAPIClient(IGmailAPIClient):
                 pageToken=page_token
             ).execute()
 
-            batch = response.get('messages', [])
-            messages.extend(batch)
+            message_ids = response.get('messages', [])
+            if not message_ids:
+                break
+
+            for msg in message_ids:
+                msg_detail = self.service.users().messages().get(userId='me', id=msg['id']).execute()
+                messages.append(msg_detail)
+
+                if len(messages) >= max_results:
+                    break
 
             page_token = response.get('nextPageToken')
             if not page_token:
@@ -106,29 +123,7 @@ class GmailService:
         self.thread_manager = thread_manager
         self.last_seen_email_time = None
 
-    def fetch_emails_by_date_range(self, uid: str, start_date: str, end_date: str, max_results: int = -1):
-        """
-        start_date and end_date -> Must be in ISO 8601 string format ("2024-12-01T00:00:00+00:00")\n
-        max_results -> If it's less than 1, it means there is no limit.
-        """
-
-        try:
-            start = datetime.fromisoformat(start_date).strftime("%Y/%m/%d")
-            end = datetime.fromisoformat(end_date).strftime("%Y/%m/%d")
-        except Exception:
-            return []
-
-        query = f"after:{start} before:{end}"
-        messages = self.api_client.fetch_messages_by_query(query, max_results)
-
-        return self._process_messages(
-            uid,
-            messages,
-            track_latest_time=False,
-            mark_as_processed=False
-        )
-
-    def fetch_all_emails(self, uid: str, max_result: int) -> list:
+    def fetch_all_emails(self, uid: str, max_results: int):
         messages = self.api_client.fetch_messages(max_results)
 
         return self._process_messages(
