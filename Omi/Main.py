@@ -1,6 +1,7 @@
 import os
 import pickle
 import Logger
+import facts_converter
 from Logger import LoggerType, FormatterType
 from email_service import GmailService
 from thread_manager import thread_manager
@@ -201,10 +202,35 @@ def update_settings():
     return jsonify({"status": "success"})
 
 
+@app.route("/convert-to-facts", methods=["POST"])
+def convert_to_facts():
+    uid = request.args.get("uid")
+    if not uid:
+        return ERROR_RESPONSES["NO_UID"]
+
+    data = request.get_json()
+
+    user = user_repository.get_user(uid)
+
+    token_path = user["google_credentials"]
+
+    with open(token_path, "rb") as token_file:
+        credentials = pickle.load(token_file)
+
+    mail_count_raw = data.get("count")
+    try:
+        mail_count = int(mail_count_raw)
+    except (ValueError, TypeError):
+        return ERROR_RESPONSES["INVALID_MAIL_COUNT"]
+
+    facts = facts_converter.convert_with_email_count(uid, credentials, thread_manager, mail_count)
+
+    return jsonify({"facts": facts})
+
+
 @app.route("/setup-complete")
 def is_setup_completed():
     uid = request.args.get("uid")
-
     if not uid:
         return ERROR_RESPONSES["NO_UID"]
 
@@ -257,5 +283,5 @@ def start_listening_mail(uid: str, credentials: str):
 
 
 if __name__ == '__main__':
-    start_listening_all_users()
+    # start_listening_all_users()
     app.run(host='127.0.0.1', port=5000, debug=False, ssl_context="adhoc")

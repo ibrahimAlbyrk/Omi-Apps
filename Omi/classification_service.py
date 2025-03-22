@@ -2,10 +2,16 @@ import os
 import json
 import openai
 from Config import OPENAI_API_KEY
+from action_service import OmiActionService
 
 
 class IClassificationService:
     def classify_email(self, email: dict, important_categories: list, ignored_categories: list) -> dict:
+        raise NotImplementedError
+
+
+class ISummarizationService:
+    def summarize_email(self, email: dict, classification: dict) -> str:
         raise NotImplementedError
 
 
@@ -41,7 +47,7 @@ class AIClassificationService(IClassificationService):
         self.client = openai.Client(api_key=OPENAI_API_KEY)
         self.always_important = False
 
-    def classify_email(self, email: dict, important_categories = None, ignored_categories = None) -> dict:
+    def classify_email(self, email: dict, important_categories=None, ignored_categories=None) -> dict:
         if ignored_categories is None:
             ignored_categories = DEFAULT_IGNORED_CATEGORIES
         if important_categories is None:
@@ -119,3 +125,55 @@ class AIClassificationService(IClassificationService):
         content = response.choices[0].message.content.strip()
         classification = json.loads(content)
         return classification
+
+
+class AISummarizationService(ISummarizationService):
+    def __init__(self):
+        self.client = openai.Client(api_key=OPENAI_API_KEY)
+        self.always_important = False
+
+    def summarize_email(self, email: dict, classification: dict) -> str:
+        system_prompt = f"""
+                You will be given the content of an email.
+                Your task is not just to summarize it, but to extract meaningful, memory-worthy facts 
+                about the user based on the message content. These facts should be context-rich, personal, 
+                and useful for understanding the user's goals, responsibilities, relationships, preferences, 
+                or current engagements.
+                
+                YOUR OBJECTIVE:
+                Analyze the email and output a single paragraph that:
+                - Identifies what the email reveals about the user (e.g. their role, projects, interests, or tasks)
+                - Extracts key facts that should be remembered about the user's current state or environment
+                - Embeds tags or context indicators (e.g. SDK, PR, deadline, client, payment, request, etc.) where helpful
+                - Highlights important dynamics (e.g. user made a decision, received a request, is awaiting something)
+                - Is suitable for long-term memory (i.e. something a smart assistant would want to recall later)
+                
+                RULES:
+                1. Focus only on user-relevant insights and facts - not just message intent or general info.
+                2. Avoid greetings, signatures, or irrelevant fluff.
+                3. Do not restate the entire message - infer and translate its implications about the user.
+                4. Only output a single paragraph (max 5 lines), no formatting, no headings, no bullet points, no JSON.
+                5. Output should feel like a meaningful note about the user - something Omi should remember forever.
+                
+                EXAMPLE OF GOOD OUTPUT:
+                User has agreed to review the new PR for the mobile SDK before Friday and is working closely with Alex on the integration.
+                They've taken ownership of the testing phase and will push the final patch after internal QA.
+                This shows their active involvement in mobile development tasks and their coordination with team leads.
+                A clear deadline and dependency chain exists, which may affect other deliverables.
+                The user's focus is currently on resolving SDK-related issues efficiently and collaboratively.
+                
+                Final output should be clear, highly contextual, and framed as memory for a personal assistant.
+                """
+
+        prompt = OmiActionService.compose_email_text(email, classification)
+
+        response = self.client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+        )
+
+        summary = response.choices[0].message.content.strip()
+        return summary
