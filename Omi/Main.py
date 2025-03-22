@@ -1,6 +1,7 @@
 import os
 import pickle
 import Logger
+import facts_converter
 from Logger import LoggerType, FormatterType
 from email_service import GmailService
 from thread_manager import thread_manager
@@ -201,10 +202,49 @@ def update_settings():
     return jsonify({"status": "success"})
 
 
+@app.route("/convert-to-facts", methods=["POST"])
+def convert_to_facts():
+    uid = request.args.get("uid")
+    if not uid:
+        return ERROR_RESPONSES["NO_UID"]
+
+    data = request.get_json()
+
+    convert_type: str = data.get("type", "")
+
+    if not convert_type:
+        return ERROR_RESPONSES["WENT_WRONG"]
+
+    user = user_repository.get_user(uid)
+
+    token_path = user["google_credentials"]
+
+    with open(token_path, "rb") as token_file:
+        credentials = pickle.load(token_file)
+
+    facts = []
+
+    if convert_type == "date-range":
+        start_date = data.get("startDate")
+        end_date = data.get("endDate")
+
+        facts = facts_converter.convert_with_date_range(credentials, thread_manager, start_date, end_date)
+
+    elif convert_type == "mail-count":
+        mail_count_raw = data.get("count")
+        try:
+            mail_count = int(mail_count_raw)
+        except (ValueError, TypeError):
+            return ERROR_RESPONSES["INVALID_MAIL_COUNT"]
+
+        facts = facts_converter.convert_with_email_count(credentials, thread_manager, mail_count)
+
+    return jsonify({"facts": facts})
+
+
 @app.route("/setup-complete")
 def is_setup_completed():
     uid = request.args.get("uid")
-
     if not uid:
         return ERROR_RESPONSES["NO_UID"]
 

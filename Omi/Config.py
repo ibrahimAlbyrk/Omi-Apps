@@ -29,5 +29,7 @@ ERROR_RESPONSES = {
     "NO_VALID_CREDENTIALS": ("Error: No valid credentials found.", 403),
     "SESSION_EXPIRED": ("Error:This session is over :(", 405),
     "INVALID_DATA": ("Invalid data types", 406),
-    "MISSING_UID": ("Missing UID", 407)
+    "MISSING_UID": ("Missing UID", 407),
+    "INVALID_MAIL_COUNT": ("Invalid mail count", 408),
+    "WENT_WRONG": ("Something went wrong.", 410)
 }

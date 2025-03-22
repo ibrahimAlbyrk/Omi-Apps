@@ -26,13 +26,50 @@ class GmailAPIClient(IGmailAPIClient):
     def __init__(self, credentials):
         self.service = build("gmail", "v1", credentials=credentials)
 
-    def fetch_messages(self, max_results: int = 5):
-        try:
-            results = self.service.users().messages().list(userId="me", maxResults=max_results).execute()
-            return results.get("messages", [])
-        except Exception as e:
-            logger.error(f"Error fetching emails: {e}")
-            return []
+    def fetch_messages_by_query(self, query: str, max_results: int = -1) -> list:
+        messages = []
+        page_token = None
+
+        while True:
+            request = self.service.users().messages().list(
+                userId='me',
+                q=query,
+                maxResults=500 if max_results < 1 else max_results,
+                pageToken=page_token
+            )
+            response = request.execute()
+
+            batch = response.get('messages', [])
+            messages.extend(batch)
+
+            page_token = response.get('nextPageToken')
+            if not page_token:
+                break
+
+        return messages
+
+    def fetch_messages(self, max_results: int = 100):
+        messages = []
+        page_token = None
+
+        while len(messages) < max_results:
+            remaining = max_results - len(messages)
+            fetch_count = min(remaining, 500)
+
+            response = self.service.users().messages().list(
+                userId='me',
+                maxResults=fetch_count,
+                pageToken=page_token
+            ).execute()
+
+            batch = response.get('messages', [])
+            messages.extend(batch)
+
+            page_token = response.get('nextPageToken')
+            if not page_token:
+                break
+
+        return messages
 
     def fetch_unread_messages(self, max_results: int = 5):
         try:
@@ -44,6 +81,7 @@ class GmailAPIClient(IGmailAPIClient):
 
     def get_message(self, message_id: str):
         return self.service.users().messages().get(userId="me", id=message_id).execute()
+
 
 def decode_email_body(payload: dict) -> str:
     decoded_parts = []
@@ -61,52 +99,101 @@ def decode_email_body(payload: dict) -> str:
                     decoded_parts.append(f"[Error decoding part: {e}]")
     return "\n\n".join(decoded_parts) if decoded_parts else "[Content couldn't be read]"
 
+
 class GmailService:
     def __init__(self, credentials, thread_manager: IThreadManager):
         self.api_client = GmailAPIClient(credentials)
         self.thread_manager = thread_manager
         self.last_seen_email_time = None
 
+    def fetch_emails_by_date_range(self, uid: str, start_date: str, end_date: str, max_results: int = -1):
+        """
+        start_date and end_date -> Must be in ISO 8601 string format ("2024-12-01T00:00:00+00:00")\n
+        max_results -> If it's less than 1, it means there is no limit.
+        """
+
+        try:
+            start = datetime.fromisoformat(start_date).strftime("%Y/%m/%d")
+            end = datetime.fromisoformat(end_date).strftime("%Y/%m/%d")
+        except Exception:
+            return []
+
+        query = f"after:{start} before:{end}"
+        messages = self.api_client.fetch_messages_by_query(query, max_results)
+
+        return self._process_messages(
+            uid,
+            messages,
+            track_latest_time=False,
+            mark_as_processed=False
+        )
+
+    def fetch_all_emails(self, uid: str, max_result: int) -> list:
+        messages = self.api_client.fetch_messages(max_results)
+
+        return self._process_messages(
+            uid,
+            messages,
+            track_latest_time=False,
+            mark_as_processed=False
+        )
+
     def fetch_emails(self, uid: str, unread_only: bool = True, max_results: int = 5):
         if unread_only:
             messages = self.api_client.fetch_unread_messages(max_results)
         else:
             messages = self.api_client.fetch_messages(max_results)
+
+        return self._process_messages(uid, messages)
+
+    def _process_messages(
+            self,
+            uid: str,
+            messages: list,
+            track_latest_time: bool = True,
+            mark_as_processed: bool = True
+    ):
         emails = []
         latest_email_time = self.last_seen_email_time
-        messages.reverse()
-        for msg in messages:
+
+        for msg in reversed(messages):
             msg_id = msg["id"]
 
-            if gmail_repository.is_email_processed(uid, msg_id):
+            if mark_as_processed and gmail_repository.is_email_processed(uid, msg_id):
                 continue
 
             mail = self.api_client.get_message(msg_id)
             payload = mail.get("payload", {})
             headers = payload.get("headers", [])
-            date = next((header["value"] for header in headers if header["name"].lower() == "date"), "No Date")
+
+            date = next((h["value"] for h in headers if h["name"].lower() == "date"), "No Date")
             try:
                 date_obj = parsedate_to_datetime(date).astimezone(timezone.utc)
                 date_iso = date_obj.isoformat()
             except Exception:
                 date_obj = None
                 date_iso = date
-            subject = next((header["value"] for header in headers if header["name"].lower() == "subject"), "No Subject")
-            from_email = next((header["value"] for header in headers if header["name"].lower() == "from"), "Unknown Sender")
+
+            subject = next((h["value"] for h in headers if h["name"].lower() == "subject"), "No Subject")
+            from_email = next((h["value"] for h in headers if h["name"].lower() == "from"), "Unknown Sender")
             body = decode_email_body(payload)
+
             emails.append({
                 "date": date_iso,
                 "subject": subject,
                 "from": from_email,
                 "body": body,
             })
-            if date_obj and (latest_email_time is None or date_obj > latest_email_time):
+
+            if track_latest_time and date_obj and (latest_email_time is None or date_obj > latest_email_time):
                 latest_email_time = date_obj
 
-            gmail_repository.add_processed_email(uid, msg_id)
+            if mark_as_processed:
+                gmail_repository.add_processed_email(uid, msg_id)
 
-        if emails:
+        if emails and track_latest_time:
             self.last_seen_email_time = latest_email_time
+
         return emails
 
     def is_listening(self, uid: str) -> bool:

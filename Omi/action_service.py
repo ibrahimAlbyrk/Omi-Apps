@@ -1,8 +1,12 @@
+import time
 import requests
 from Config import OMI_API_KEY, OMI_APP_ID
 
 
 class IActionService:
+    def send_fact(self, facts: list) -> bool:
+        raise NotImplementedError
+
     def send_email(self, email: dict, classification: dict) -> bool:
         raise NotImplementedError
 
@@ -12,6 +16,29 @@ class OmiActionService(IActionService):
         self.language = language
         self.api_key = api_key
         self.app_id = app_id
+
+    def send_facts(self, facts: list) -> bool:
+        url = f"https://api.omi.me/v2/integrations/{self.app_id}/user/facts?uid={self.uid}"
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+
+        fact_count = 0
+
+        for fact in facts:
+            try:
+                response = requests.post(url, headers=headers, json=fact)
+                response.raise_for_status()
+                fact_count += 1
+            except requests.exceptions.RequestException as e:
+                print(f"Error sending fact to Omi: {e}")
+                return False, 500
+
+            # Adding a little bit rate Limiting
+            time.sleep(0.2)
+
+        return True
 
     def send_email(self, email: dict, classification: dict) -> bool:
         url = f"https://api.omi.me/v2/integrations/{self.app_id}/user/conversations?uid={self.uid}"
