@@ -11,17 +11,18 @@ classification_service = AIClassificationService()
 
 
 def process_new_emails(uid: str, emails: [], important_categories: [] = None, ignored_categories: [] = None):
-    # count: int = 0
-    for email in emails:
-        classification = classification_service.classify_email(email, important_categories, ignored_categories)
+    classifications = classification_service.classify_emails(emails, important_categories, ignored_categories)
+    for index in range(len(classifications)):
+        email = emails[index]
+        classification = classifications[index]
+
         answer = classification.get("answer", False)
         language = classification.get("language", "en")
-        if answer:
-            action_service = OmiActionService(uid, language)
-            success, status_code = action_service.send_email(email, classification)
-            if not success:
-                print(f"Failed to send email to Omi. HTTP Status: {status_code}")
-            # else:
-            #     count += 1
 
-    # logger.info(f"Processed {count} new emails")
+        if not answer:
+            continue
+
+        action_service = OmiActionService(uid, language)
+        success, status_code = action_service.send_email(email, classification)
+        if not success:
+            print(f"Failed to send email to Omi. HTTP Status: {status_code}")

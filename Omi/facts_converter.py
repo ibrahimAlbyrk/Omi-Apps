@@ -37,13 +37,16 @@ def _send_to_facts(uid: str, facts: list) -> list:
 
 def _convert(emails, important_category: list, ignored_category: list) -> list:
     results = []
-    for email in emails:
-        classification = classification_service.classify_email(email, important_category, ignored_category)
+    classifications = classification_service.classify_emails(emails, important_category, ignored_category)
+    for index in range(len(emails)):
+        email = emails[index]
+        classification = classifications[index]
         result = summarization_service.summarize_email(email, classification)
-        if not result:
-            continue
-
         results.append(result)
+
+    print(len(results))
+    for result in results:
+        print(result)
 
     return results
 

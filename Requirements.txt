@@ -1,7 +1,8 @@
-Flask
+Flask~=3.1.0
 email
-google-api-python-client
-google-auth-oauthlib
-openai
-python-dotenv
-requests
+google-api-python-client~=2.164.0
+google-auth-oauthlib~=1.2.1
+openai~=1.66.3
+python-dotenv~=1.0.1
+requests~=2.32.3
+dotenv~=0.9.9
