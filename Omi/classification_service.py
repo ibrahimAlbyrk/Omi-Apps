@@ -4,7 +4,7 @@ import openai
 from Config import OPENAI_API_KEY
 from action_service import OmiActionService
 
-GPT_MODEL = "gpt-3.5-turbo-0125"
+GPT_MODEL = "gpt-4o-mini"
 
 
 class IClassificationService:
@@ -151,6 +151,7 @@ class AISummarizationService(ISummarizationService):
     def __init__(self):
         self.client = openai.Client(api_key=OPENAI_API_KEY)
         self.always_important = False
+        self.character_limit = 300
 
     def summarize_email(self, email: dict, classification: dict) -> str:
         system_prompt = f"""
@@ -171,9 +172,10 @@ class AISummarizationService(ISummarizationService):
                 RULES:
                 1. Focus only on user-relevant insights and facts - not just message intent or general info.
                 2. Avoid greetings, signatures, or irrelevant fluff.
-                3. Do not restate the entire message - infer and translate its implications about the user.
-                4. Only output a single paragraph (max 500 character), no formatting, no headings, no bullet points, no JSON.
-                5. Output should feel like a meaningful note about the user - something Omi should remember forever.
+                3. Output must be no more than {self.character_limit} characters total (not words). This is a hard limit.
+                4. Do not restate the entire message - infer and translate its implications about the user.
+                5. Only output a single paragraph, no formatting, no headings, no bullet points, no JSON.
+                6. Output should feel like a meaningful note about the user - something Omi should remember forever.
 
                 EXAMPLE OF GOOD OUTPUT:
                 User has agreed to review the new PR for the mobile SDK before Friday and is working closely with Alex on the integration.
@@ -188,7 +190,7 @@ class AISummarizationService(ISummarizationService):
         prompt = OmiActionService.compose_email_text(email, classification)
 
         response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=GPT_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
@@ -196,4 +198,8 @@ class AISummarizationService(ISummarizationService):
         )
 
         summary = response.choices[0].message.content.strip()
+
+        if len(summary) > self.character_limit:
+            summary = summary[:self.character_limit] + "..."
+
         return summary
