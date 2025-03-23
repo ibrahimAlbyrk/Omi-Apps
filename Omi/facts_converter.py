@@ -1,12 +1,10 @@
 from Main import user_repository
 from email_service import GmailService
 from datetime import datetime, timezone
-from Database import SQLiteDatabaseManager, UserRepository
 from action_service import OmiActionService
-from classification_service import ISummarizationService, AISummarizationService, IClassificationService, AIClassificationService
+from classification_service import ISummarizationService, AISummarizationService
 
 summarization_service: ISummarizationService = AISummarizationService()
-classification_service: IClassificationService = AIClassificationService()
 
 
 def convert_with_email_count(uid: str, credentials, thread_manager, email_count: int) -> list:
@@ -19,12 +17,7 @@ def convert_with_email_count(uid: str, credentials, thread_manager, email_count:
     return _send_to_facts(uid, emails)
 
 def _send_to_facts(uid: str, facts: list) -> list:
-    settings = user_repository.get_user_settings(uid)
-
-    important_categories = settings.get("important_categories", AIClassificationService.DEFAULT_IMPORTANT_CATEGORIES)
-    ignored_categories = settings.get("ignored_categories", AIClassificationService.DEFAULT_IGNORED_CATEGORIES)
-
-    results = _convert(facts, important_categories, ignored_categories)
+    results = _convert(facts)
 
     # The language has been set to English for now.
     action_service = OmiActionService(uid, "en")
@@ -35,18 +28,12 @@ def _send_to_facts(uid: str, facts: list) -> list:
 
     return results
 
-def _convert(emails, important_category: list, ignored_category: list) -> list:
+def _convert(emails) -> list:
     results = []
-    classifications = classification_service.classify_emails(emails, important_category, ignored_category)
     for index in range(len(emails)):
         email = emails[index]
-        classification = classifications[index]
-        result = summarization_service.summarize_email(email, classification)
+        result = summarization_service.summarize_email(email, None)
         results.append(result)
-
-    print(len(results))
-    for result in results:
-        print(result)
 
     return results
 
