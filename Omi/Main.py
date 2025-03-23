@@ -283,5 +283,5 @@ def start_listening_mail(uid: str, credentials: str):
 
 
 if __name__ == '__main__':
-    # start_listening_all_users()
+    start_listening_all_users()
     app.run(host='127.0.0.1', port=5000, debug=False, ssl_context="adhoc")
