@@ -6,3 +6,4 @@ openai~=1.66.3
 python-dotenv~=1.0.1
 requests~=2.32.3
 dotenv~=0.9.9
+beautifulsoup4~=4.13.3
