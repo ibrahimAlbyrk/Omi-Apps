@@ -100,9 +100,6 @@ def logout():
         return ERROR_RESPONSES["NO_VALID_CREDENTIALS"]
     # endregion
 
-    # region core logout
-    user_repository.delete_user(uid)
-
     gmail_service = GmailService(credentials, thread_manager)
     gmail_service.stop_listening(uid)
     # endregion
@@ -141,6 +138,8 @@ def callback():
 
     if not user_repository.has_user(uid):
         user_repository.add_user(uid, token_path)
+    else:
+        user_repository.update_credentials(uid, token_path)
     # endregion
 
     return redirect(f"/logged-in?uid={uid}")
@@ -202,7 +201,7 @@ def update_settings():
     return jsonify({"status": "success"})
 
 
-@app.route("/convert-to-facts", methods=["POST"])
+@app.route("/convert-to-memory", methods=["POST"])
 def convert_to_facts():
     uid = request.args.get("uid")
     if not uid:
@@ -225,7 +224,7 @@ def convert_to_facts():
 
     facts = facts_converter.convert_with_email_count(uid, credentials, thread_manager, mail_count)
 
-    return jsonify({"facts": facts})
+    return jsonify({"memories": facts})
 
 
 @app.route("/setup-complete")
