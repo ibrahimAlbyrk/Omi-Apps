@@ -172,7 +172,7 @@ class AISummarizationService(ISummarizationService):
                 1. Focus only on user-relevant insights and facts - not just message intent or general info.
                 2. Avoid greetings, signatures, or irrelevant fluff.
                 3. Do not restate the entire message - infer and translate its implications about the user.
-                4. Only output a single paragraph (max 5 lines), no formatting, no headings, no bullet points, no JSON.
+                4. Only output a single paragraph (max 500 character), no formatting, no headings, no bullet points, no JSON.
                 5. Output should feel like a meaningful note about the user - something Omi should remember forever.
 
                 EXAMPLE OF GOOD OUTPUT:
