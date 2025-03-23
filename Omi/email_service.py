@@ -104,55 +104,20 @@ class GmailAPIClient(IGmailAPIClient):
 
 
 def decode_email_body(payload: dict) -> str:
-    plain_contents = []
-    html_contents = []
-
-    def decode_plain(encoded):
+    decoded_parts = []
+    if "body" in payload and "data" in payload["body"]:
         try:
-            return base64.urlsafe_b64decode(encoded + '=' * (-len(encoded) % 4)).decode("utf-8", errors="replace")
+            decoded_parts.append(base64.urlsafe_b64decode(payload["body"]["data"]).decode("utf-8"))
         except Exception as e:
-            return f"[Plaintext decode error: {e}]"
-
-    def decode_html(encoded):
-        try:
-            decoded = base64.urlsafe_b64decode(encoded + '=' * (-len(encoded) % 4)).decode("utf-8", errors="replace")
-            soup = BeautifulSoup(decoded, "html.parser")
-            paragraphs = soup.find_all("p")
-            return "\n\n".join(p.get_text(strip=True) for p in paragraphs if p.get_text(strip=True))
-        except Exception as e:
-            return f"[HTML decode error: {e}]"
-
-    def try_add(text, target_list):
-        norm = " ".join(text.lower().split())
-        if norm not in [" ".join(x.lower().split()) for x in target_list]:
-            target_list.append(text)
-
+            decoded_parts.append(f"[Error decoding body: {e}]")
     if "parts" in payload:
         for part in payload["parts"]:
-            mime = part.get("mimeType")
-            body_data = part.get("body", {}).get("data")
-            if not body_data:
-                continue
-
-            if mime == "text/plain":
-                try_add(decode_plain(body_data), plain_contents)
-            elif mime == "text/html":
-                try_add(decode_html(body_data), html_contents)
-
-    if payload.get("body", {}).get("data"):
-        mime = payload.get("mimeType")
-        body_data = payload["body"]["data"]
-        if mime == "text/plain":
-            try_add(decode_plain(body_data), plain_contents)
-        elif mime == "text/html":
-            try_add(decode_html(body_data), html_contents)
-
-    if plain_contents:
-        return "\n\n---\n\n".join(plain_contents)
-    elif html_contents:
-        return "\n\n---\n\n".join(html_contents)
-    else:
-        return None
+            if "body" in part and "data" in part["body"]:
+                try:
+                    decoded_parts.append(base64.urlsafe_b64decode(part["body"]["data"]).decode("utf-8"))
+                except Exception as e:
+                    decoded_parts.append(f"[Error decoding part: {e}]")
+    return "\n\n".join(decoded_parts) if decoded_parts else "[Content couldn't be read]"
 
 
 class GmailService:

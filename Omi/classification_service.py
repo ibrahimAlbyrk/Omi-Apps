@@ -66,7 +66,7 @@ class AIClassificationService(IClassificationService):
                     Classifies an email and extracts relevant metadata.
                     f"IMPORTANT CATEGORIES: {important_categories}
                     IGNORED CATEGORIES: {ignored_categories}
-                    If an email matches both an IMPORTANT and an IGNORED category, you must treat it as IGNORED. Do not set 'answer' to true in such cases.
+                    If an email matches both an IMPORTANT and an IGNORED category, you must treat it as {'IMPORTANT' if self.always_important else 'IGNORED'}. Do not set 'answer' to true in such cases.
                     Return language using ISO 639-1 format (e.g., 'tr' not 'Turkish').
                     Determine priority and sender importance based on urgency, deadlines, or identity.
                     Make sure sentiment, tags, and suggested actions are accurate based on content.
@@ -128,10 +128,14 @@ class AIClassificationService(IClassificationService):
         results = []
 
         for email in emails:
+            subject = email.get('subject', '')
+            fromm = email.get('from', '')
+            content = email.get('body', '')
+
             prompt = (
-                f"Mail Title: {email.get('subject', '')}\n"
-                f"From: {email.get('from', '')}\n"
-                f"Content: {email.get('body', '')[:1000]}"
+                f"Mail Title: {subject}\n"
+                f"From: {fromm}\n"
+                f"Content: {content[:1000]}"
             )
 
             response = self.client.chat.completions.create(
