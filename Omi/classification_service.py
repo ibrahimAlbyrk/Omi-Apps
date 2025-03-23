@@ -64,7 +64,7 @@ class AIClassificationService(IClassificationService):
                     Classifies an email and extracts relevant metadata.
                     f"IMPORTANT CATEGORIES: {important_categories}
                     IGNORED CATEGORIES: {ignored_categories}
-                    If both important and ignored categories apply, {"IMPORTANT" if self.always_important else "IGNORED"} should be prioritized.
+                    If an email matches both an IMPORTANT and an IGNORED category, you must treat it as IGNORED. Do not set 'answer' to true in such cases.
                     Return language using ISO 639-1 format (e.g., 'tr' not 'Turkish').
                     Determine priority and sender importance based on urgency, deadlines, or identity.
                     Make sure sentiment, tags, and suggested actions are accurate based on content.
@@ -73,7 +73,7 @@ class AIClassificationService(IClassificationService):
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "answer": {"type": "boolean", "description": "Set true if email clearly matches an IMPORTANT CATEGORY; otherwise false."},
+                        "answer": {"type": "boolean", "description": "Set to true ONLY if email clearly matches an IMPORTANT CATEGORY and does NOT match any IGNORED CATEGORY. If both match, set to false."},
 
                         "important": {"type": ["string", "null"],
                                       "description": "Identify exactly one matched IMPORTANT CATEGORY or Null if none match clearly."},
@@ -114,7 +114,7 @@ class AIClassificationService(IClassificationService):
                                      "description": "Use ISO 639-1 codes like 'tr' for Turkish, 'en' for English."},
 
                         "ignored": {"type": ["string", "null"],
-                                    "description": " Clearly identify exactly one IGNORED CATEGORY matched or Null if none clearly match"}
+                                    "description": "Clearly identify exactly one IGNORED CATEGORY if the email matches any. If it also matches an IMPORTANT CATEGORY, IGNORED takes precedence."}
                     },
                     "required": ["answer", "important", "priority", "sender_importance", "summary", "sentiment",
                                  "has_attachment", "has_links", "suggested_actions", "tags", "reply_required",
