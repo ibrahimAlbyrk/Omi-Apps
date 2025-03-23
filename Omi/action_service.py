@@ -1,6 +1,6 @@
 import time
 import requests
-from datetime import datetime
+from datetime import datetime, timezone
 from Config import OMI_API_KEY, OMI_APP_ID
 
 
