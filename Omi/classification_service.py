@@ -5,6 +5,7 @@ from Config import OPENAI_API_KEY
 from action_service import OmiActionService
 import email_service
 
+
 GPT_MODEL = "gpt-4o-mini"
 
 
@@ -14,7 +15,7 @@ class IClassificationService:
 
 
 class ISummarizationService:
-    def summarize_email(self, email: dict, classification: dict) -> list:
+    def summarize_email(self, email: dict) -> list:
         raise NotImplementedError
 
 
@@ -154,7 +155,7 @@ class AISummarizationService(ISummarizationService):
         self.always_important = False
         self.character_limit = 300
 
-    def summarize_email(self, email: dict, classification: dict) -> str:
+    def summarize_email(self, email: dict) -> str:
         system_prompt = f"""
         You are an intelligent assistant that builds long-term memory about the user based on the emails they receive or send.
         Your goal is not just to summarize the email, but to deeply understand what it reveals about the user's life,
@@ -169,7 +170,6 @@ class AISummarizationService(ISummarizationService):
         EACH MEMORY ENTRY SHOULD:
         - Reflect what this message reveals about the user's current status, relationships, tasks, interests, habits, challenges, or decisions
         - Capture the underlying dynamics (e.g. the user is leading a project, made a choice, needs something, is being waited on)
-        - Use context tags where helpful (e.g. [project], [deadline], [payment], [travel], [client], [SDK])
         - Focus only on the user, not others unless relevant to the user's world
         - Be written like an internal note, not like a summary or reply
 
@@ -187,7 +187,7 @@ class AISummarizationService(ISummarizationService):
         content = email.get('body', None)
 
         if not subject or not content:
-            return ""
+            return []
 
         prompt = f"""
             "Title": {subject},

@@ -32,7 +32,9 @@ def _convert(emails) -> list:
     results = []
     for index in range(len(emails)):
         email = emails[index]
-        result = summarization_service.summarize_email(email, None)
+        result = summarization_service.summarize_email(email)
+        if not result:
+            continue
         results.append(result)
 
     return results
