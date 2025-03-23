@@ -3,6 +3,7 @@ import json
 import openai
 from Config import OPENAI_API_KEY
 from action_service import OmiActionService
+import email_service
 
 GPT_MODEL = "gpt-4o-mini"
 
@@ -155,39 +156,43 @@ class AISummarizationService(ISummarizationService):
 
     def summarize_email(self, email: dict, classification: dict) -> str:
         system_prompt = f"""
-                You will be given the content of an email.
-                Your task is not just to summarize it, but to extract meaningful, memory-worthy facts 
-                about the user based on the message content. These facts should be context-rich, personal, 
-                and useful for understanding the user's goals, responsibilities, relationships, preferences, 
-                or current engagements.
+        You are an intelligent assistant that builds long-term memory about the user based on the emails they receive or send.
+        Your goal is not just to summarize the email, but to deeply understand what it reveals about the user's life,
+        priorities, behaviors, goals, and environment.
+        You are always learning and updating your understanding of who the user is.
 
-                YOUR OBJECTIVE:
-                Analyze the email and output a single paragraph that:
-                - Identifies what the email reveals about the user (e.g. their role, projects, interests, or tasks)
-                - Extracts key facts that should be remembered about the user's current state or environment
-                - Embeds tags or context indicators (e.g. SDK, PR, deadline, client, payment, request, etc.) where helpful
-                - Highlights important dynamics (e.g. user made a decision, received a request, is awaiting something)
-                - Is suitable for long-term memory (i.e. something a smart assistant would want to recall later)
+        YOUR TASK:
+        From each email you process, extract valuable, context-rich insights that help you form a more complete picture of the user over time.
+        These are not summaries - they are memory entries.
+        Think of them as facts you'd remember if you were a human assistant trying to truly support and anticipate the user's needs.
 
-                RULES:
-                1. Focus only on user-relevant insights and facts - not just message intent or general info.
-                2. Avoid greetings, signatures, or irrelevant fluff.
-                3. Output must be no more than {self.character_limit} characters total (not words). This is a hard limit.
-                4. Do not restate the entire message - infer and translate its implications about the user.
-                5. Only output a single paragraph, no formatting, no headings, no bullet points, no JSON.
-                6. Output should feel like a meaningful note about the user - something Omi should remember forever.
+        EACH MEMORY ENTRY SHOULD:
+        - Reflect what this message reveals about the user's current status, relationships, tasks, interests, habits, challenges, or decisions
+        - Capture the underlying dynamics (e.g. the user is leading a project, made a choice, needs something, is being waited on)
+        - Use context tags where helpful (e.g. [project], [deadline], [payment], [travel], [client], [SDK])
+        - Focus only on the user, not others unless relevant to the user's world
+        - Be written like an internal note, not like a summary or reply
 
-                EXAMPLE OF GOOD OUTPUT:
-                User has agreed to review the new PR for the mobile SDK before Friday and is working closely with Alex on the integration.
-                They've taken ownership of the testing phase and will push the final patch after internal QA.
-                This shows their active involvement in mobile development tasks and their coordination with team leads.
-                A clear deadline and dependency chain exists, which may affect other deliverables.
-                The user's focus is currently on resolving SDK-related issues efficiently and collaboratively.
+        RULES:
+        1) Output only one memory entry per email.
+        2) It must be deeply user-centric and suitable for long-term use.
+        3) It should not exceed {self.character_limit} characters.
+        4) No formatting, lists, or markdown - just a natural, concise paragraph that feels like a meaningful observation.
+        5) Do not repeat the email's wording - interpret and condense meaning.
 
-                Final output should be clear, highly contextual, and framed as memory for a personal assistant.
-                """
+        Always act like you're building an evolving, personal profile to better serve and understand the user over time.
+        """
 
-        prompt = OmiActionService.compose_email_text(email, classification)
+        subject = email.get('subject', None)
+        content = email.get('body', None)
+
+        if not subject or not content:
+            return ""
+
+        prompt = f"""
+            "Title": {subject},
+            "Content": {content}
+        """
 
         response = self.client.chat.completions.create(
             model=GPT_MODEL,
