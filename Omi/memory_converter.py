@@ -14,14 +14,14 @@ def convert_with_email_count(uid: str, credentials, thread_manager, email_count:
     gmail_service = GmailService(credentials, thread_manager)
     emails = gmail_service.fetch_all_emails(uid, email_count)
 
-    return _send_to_facts(uid, emails)
+    return _send_to_memories(uid, emails)
 
-def _send_to_facts(uid: str, facts: list) -> list:
-    results = _convert(facts)
+def _send_to_memories(uid: str, memories: list) -> list:
+    results = _convert(memories)
 
     # The language has been set to English for now.
     action_service = OmiActionService(uid, "en")
-    success = action_service.send_facts(results)
+    success = action_service.send_memories(results)
 
     if not success:
         return []

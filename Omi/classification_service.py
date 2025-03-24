@@ -175,7 +175,7 @@ class AISummarizationService(ISummarizationService):
         YOUR TASK:
         From each email you process, extract valuable, context-rich insights that help you form a more complete picture of the user over time.
         These are not summaries - they are memory entries.
-        Think of them as facts you'd remember if you were a human assistant trying to truly support and anticipate the user's needs.
+        Think of them as memories you'd remember if you were a human assistant trying to truly support and anticipate the user's needs.
 
         EACH MEMORY ENTRY SHOULD:
         - Reflect what this message reveals about the user's current status, relationships, tasks, interests, habits, challenges, or decisions

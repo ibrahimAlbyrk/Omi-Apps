@@ -2,7 +2,7 @@ import os
 import pickle
 import logging
 import Logger
-import facts_converter
+import memory_converter
 from Logger import LoggerType, FormatterType
 from email_service import GmailService
 from thread_manager import thread_manager
@@ -212,7 +212,7 @@ def update_settings():
 
 
 @app.route("/convert-to-memory", methods=["POST"])
-def convert_to_facts():
+def convert_to_memories():
     uid = request.args.get("uid")
     if not uid:
         return ERROR_RESPONSES["NO_UID"]
@@ -232,9 +232,9 @@ def convert_to_facts():
     except (ValueError, TypeError):
         return ERROR_RESPONSES["INVALID_MAIL_COUNT"]
 
-    facts = facts_converter.convert_with_email_count(uid, credentials, thread_manager, mail_count)
+    memories = memory_converter.convert_with_email_count(uid, credentials, thread_manager, mail_count)
 
-    return jsonify({"memories": facts})
+    return jsonify({"memories": memories})
 
 
 @app.route("/setup-complete")

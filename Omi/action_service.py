@@ -5,7 +5,7 @@ from Config import OMI_API_KEY, OMI_APP_ID
 
 
 class IActionService:
-    def send_facts(self, facts: list) -> bool:
+    def send_memories(self, memories: list) -> bool:
         raise NotImplementedError
 
     def send_email(self, email: dict, classification: dict) -> bool:
@@ -18,30 +18,30 @@ class OmiActionService(IActionService):
         self.api_key = api_key
         self.app_id = app_id
 
-    def send_facts(self, facts: list) -> bool:
-        url = f"https://api.omi.me/v2/integrations/{self.app_id}/user/facts?uid={self.uid}"
+    def send_memories(self, memories: list) -> bool:
+        url = f"https://api.omi.me/v2/integrations/{self.app_id}/user/memories?uid={self.uid}"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
         }
 
-        fact_count = 0
+        memory_count = 0
 
-        for fact in facts:
+        for memory in memories:
             try:
                 data = {
-                    "text": fact,
+                    "text": memory,
                     "text_source": "other",
                     "text_source_spec": f"learning from mails",
                 }
 
                 response = requests.post(url, headers=headers, json=data)
                 response.raise_for_status()
-                fact_count += 1
+                memory_count += 1
                 if response.status_code != 200:
                     return False, response.status_code
             except requests.exceptions.RequestException as e:
-                print(f"Error sending fact to Omi: {e}")
+                print(f"Error sending memory to Omi: {e}")
                 return False, 500
 
             # Adding a little bit rate Limiting
