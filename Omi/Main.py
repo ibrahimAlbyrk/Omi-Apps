@@ -1,5 +1,6 @@
 import os
 import pickle
+import logging
 import Logger
 import facts_converter
 from Logger import LoggerType, FormatterType
@@ -18,11 +19,13 @@ from Config import APP_SECRET_KEY, GOOGLE_CLIENT_SECRET, REDIRECT_URI, GMAIL_SCO
 app = Flask(__name__)
 app.secret_key = APP_SECRET_KEY
 
+flaskLogger = logging.getLogger('werkzeug')
+flaskLogger.setLevel(logging.ERROR)
+
 db_manager = SQLiteDatabaseManager()
 user_repository = UserRepository(db_manager)
 classification_service = AIClassificationService()
 
-logger = Logger.Manager("Main", FormatterType.ADVANCED, LoggerType.CONSOLE)
 #endregion
 
 " -------------- WEBHOOK FUNCTIONS -------------- "
@@ -36,7 +39,10 @@ def index():
 
     session["uid"] = uid
 
-    if user_repository.has_user(uid):
+    has_user = user_repository.has_user(uid)
+    is_logged_in = user_repository.is_logged_in(uid)
+
+    if has_user and is_logged_in:
         return redirect(f"/logged-in?uid={uid}")
 
     return render_template("index.html")
@@ -104,6 +110,8 @@ def logout():
     gmail_service.stop_listening(uid)
     # endregion
 
+    user_repository.set_logged_in(uid, False)
+
     url = f"{BASE_URI}/?uid={uid}"
 
     return jsonify({"url": url})
@@ -140,6 +148,8 @@ def callback():
         user_repository.add_user(uid, token_path)
     else:
         user_repository.update_credentials(uid, token_path)
+
+    user_repository.set_logged_in(uid, True)
     # endregion
 
     return redirect(f"/logged-in?uid={uid}")

@@ -105,6 +105,7 @@ class UserRepository(IUserRepository):
         query = f"""
         CREATE TABLE IF NOT EXISTS users (
             uid TEXT PRIMARY KEY,
+            is_logged_in INTEGER DEFAULT 0,
             google_credentials TEXT NOT NULL,
             mail_check_interval INTEGER DEFAULT 60,
             mail_count INTEGER DEFAULT 3,
@@ -120,6 +121,8 @@ class UserRepository(IUserRepository):
             self.db.execute("ALTER TABLE users ADD COLUMN important_categories TEXT DEFAULT '[]'")
         if 'ignored_categories' not in columns:
             self.db.execute("ALTER TABLE users ADD COLUMN ignored_categories TEXT DEFAULT '[]'")
+        if 'is_logged_in' not in columns:
+            self.db.execute("ALTER TABLE users ADD COLUMN is_logged_in INTEGER DEFAULT 1")
 
     def add_user(self, uid: str, google_credentials: str = None):
         query = "INSERT INTO users (uid, google_credentials) VALUES (?, ?)"
@@ -159,6 +162,14 @@ class UserRepository(IUserRepository):
     def update_credentials(self, uid: str, new_google_credentials: str):
         query = "UPDATE users SET google_credentials = ? WHERE uid = ?;"
         self.db.execute(query, (new_google_credentials, uid))
+
+    def set_logged_in(self, uid: str, logged_in: bool):
+        query = "UPDATE users SET is_logged_in = ? WHERE uid = ?"
+        self.db.execute(query, (1 if logged_in else 0, uid))
+
+    def is_logged_in(self, uid: str) -> bool:
+        result = self.db.fetch_one("SELECT is_logged_in FROM users WHERE uid = ?", (uid,))
+        return bool(result["is_logged_in"]) if result and "is_logged_in" in result.keys() else False
 
     def update_user_settings(self, uid: str, mail_interval: int, mail_count: int, important_categories: list, ignored_categories: list):
         self.db.execute(
