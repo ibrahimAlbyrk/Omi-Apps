@@ -1,11 +1,36 @@
-from Main import user_repository
+import email_service
 from email_service import GmailService
 from datetime import datetime, timezone
 from action_service import OmiActionService
+from email.utils import parsedate_to_datetime
 from classification_service import ISummarizationService, AISummarizationService
 
 summarization_service: ISummarizationService = AISummarizationService()
 
+
+def convert_with_selected_ids(uid: str, credentials, thread_manager, selected_ids: list) -> list:
+    gmail_service = GmailService(credentials, thread_manager)
+
+    emails = []
+    for message_id in selected_ids:
+        mail = gmail_service.api_client.get_message(message_id)
+
+        payload = mail.get("payload", {})
+        headers = payload.get("headers", [])
+
+        date = next((h["value"] for h in headers if h["name"].lower() == "date"), "No Date")
+        subject = next((h["value"] for h in headers if h["name"].lower() == "subject"), "No Subject")
+        from_email = next((h["value"] for h in headers if h["name"].lower() == "from"), "Unknown Sender")
+        body = email_service.decode_email_body(payload)
+
+        emails.append({
+            "date":  parsedate_to_datetime(date).astimezone(timezone.utc).isoformat(),
+            "subject": subject,
+            "from": from_email,
+            "body": body
+        })
+
+    return _send_to_memories(uid, emails)
 
 def convert_with_email_count(uid: str, credentials, thread_manager, email_count: int) -> list:
     if email_count < 1:

@@ -122,9 +122,40 @@ def decode_email_body(payload: dict) -> str:
 
 class GmailService:
     def __init__(self, credentials, thread_manager: IThreadManager):
+        self.credentials = credentials
         self.api_client = GmailAPIClient(credentials)
         self.thread_manager = thread_manager
         self.last_seen_email_time = None
+
+    def fetch_email_subjects_paginated(self, offset: int, limit: int) -> list:
+        from googleapiclient.discovery import build
+        service = build('gmail', 'v1', credentials=self.credentials)
+
+        result = service.users().messages().list(userId='me', maxResults=offset + limit, q="").execute()
+        messages = result.get('messages', [])
+
+        subjects = []
+        for i in range(offset, offset + limit):
+            if i >= len(messages):
+                break
+
+            msg_id = messages[i]['id']
+            msg = service.users().messages().get(userId='me', id=msg_id, format='metadata',
+                                                 metadataHeaders=["Subject"]).execute()
+
+            subject = "No Subject"
+            headers = msg.get("payload", {}).get("headers", [])
+            for h in headers:
+                if h.get("name", "").lower() == "subject":
+                    subject = h["value"]
+                    break
+
+            subjects.append({
+                "id": msg_id,
+                "subject": subject
+            })
+
+        return subjects
 
     def fetch_all_emails(self, uid: str, max_results: int):
         messages = self.api_client.fetch_messages(max_results)

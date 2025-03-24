@@ -1,3 +1,4 @@
+import json
 import os
 import pickle
 import logging
@@ -25,6 +26,8 @@ flaskLogger.setLevel(logging.ERROR)
 db_manager = SQLiteDatabaseManager()
 user_repository = UserRepository(db_manager)
 classification_service = AIClassificationService()
+
+logger = Logger.Manager("Main", FormatterType.ADVANCED, LoggerType.CONSOLE)
 
 #endregion
 
@@ -83,6 +86,8 @@ def logged_in():
 
     if not uid:
         return ERROR_RESPONSES["NO_UID"]
+
+    logger.info(f"User logged in: {uid}")
 
     session["uid"] = uid
     return render_template("index.html", uid=uid)
@@ -210,14 +215,14 @@ def update_settings():
 
     return jsonify({"status": "success"})
 
-
-@app.route("/convert-to-memory", methods=["POST"])
-def convert_to_memories():
+@app.route("/get-email-subjects", methods=["GET"])
+def get_email_subjects():
     uid = request.args.get("uid")
-    if not uid:
-        return ERROR_RESPONSES["NO_UID"]
+    offset = int(request.args.get("offset"))
+    limit = int(request.args.get("limit"))
 
-    data = request.get_json()
+    if not uid:
+        return ERROR_RESPONSES["MISSING_UID"]
 
     user = user_repository.get_user(uid)
 
@@ -226,15 +231,46 @@ def convert_to_memories():
     with open(token_path, "rb") as token_file:
         credentials = pickle.load(token_file)
 
-    mail_count_raw = data.get("count")
-    try:
-        mail_count = int(mail_count_raw)
-    except (ValueError, TypeError):
-        return ERROR_RESPONSES["INVALID_MAIL_COUNT"]
+    gmail_service = GmailService(credentials, thread_manager)
+    subjects = gmail_service.fetch_email_subjects_paginated(offset, limit)
 
-    memories = memory_converter.convert_with_email_count(uid, credentials, thread_manager, mail_count)
+    return jsonify({"subjects": subjects})
 
-    return jsonify({"memories": memories})
+@app.route("/convert-to-memory", methods=["POST"])
+def convert_to_memories():
+    uid = request.args.get("uid")
+    if not uid:
+        return ERROR_RESPONSES["NO_UID"]
+
+    logger.info(f"User created memory: {uid}")
+
+    data = request.get_json()
+
+    user = user_repository.get_user(uid)
+    token_path = user["google_credentials"]
+
+    with open(token_path, "rb") as token_file:
+        credentials = pickle.load(token_file)
+
+    mode = data.get("mode", "count")
+
+    if mode == "count":
+        mail_count = int(data.get("count", None))
+        if not mail_count:
+            return ERROR_RESPONSES["INVALID_MAIL_COUNT"]
+        memories = memory_converter.convert_with_email_count(uid, credentials, thread_manager, mail_count)
+        return jsonify({"memories": memories})
+
+    elif mode == "selection":
+        selected_emails = data.get("selectedSubjects", [])
+        selected_ids = [item["id"] for item in selected_emails]
+        if not selected_ids:
+            return ERROR_RESPONSES["INVALID_DATA"]
+
+        memories = memory_converter.convert_with_selected_ids(uid, credentials, thread_manager, selected_ids)
+        return jsonify({"memories": memories})
+
+    return ERROR_RESPONSES["INVALID_DATA"]
 
 
 @app.route("/setup-complete")
