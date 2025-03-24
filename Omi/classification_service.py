@@ -63,11 +63,16 @@ class AIClassificationService(IClassificationService):
                 "name": "classify_email",
                 "description": (
                     f"""
-                    Classifies an email and extracts relevant metadata.
-                    f"IMPORTANT CATEGORIES: {important_categories}
+
+                    You are an advanced email classifier. Analyze the given email thoroughly based on:
+
+                    IMPORTANT CATEGORIES (exactly match the main purpose or intent): {', '.join(important_categories)}
+                    IGNORED CATEGORIES (emails that are promotional, generic, or low priority): {', '.join(ignored_categories)}
+                    
+                    IMPORTANT CATEGORIES: {important_categories}
                     IGNORED CATEGORIES: {ignored_categories}
-                    If an email matches both an IMPORTANT and an IGNORED category, you must treat it as {'IMPORTANT' if self.always_important else 'IGNORED'}. Do not set 'answer' to true in such cases.
-                    Return language using ISO 639-1 format (e.g., 'tr' not 'Turkish').
+                    If both important and ignored categories seem applicable, always prioritize {"IMPORTANT" if self.always_important else "IGNORED"}.
+                    Return language using ISO 639-1 format
                     Determine priority and sender importance based on urgency, deadlines, or identity.
                     Make sure sentiment, tags, and suggested actions are accurate based on content.
                     """
@@ -75,7 +80,7 @@ class AIClassificationService(IClassificationService):
                 "parameters": {
                     "type": "object",
                     "properties": {
-                        "answer": {"type": "boolean", "description": "Set to true ONLY if email clearly matches an IMPORTANT CATEGORY and does NOT match any IGNORED CATEGORY. If both match, set to false."},
+                        "answer": {"type": "boolean", "description": "Set true if email clearly matches an IMPORTANT CATEGORY; otherwise false"},
 
                         "important": {"type": ["string", "null"],
                                       "description": "Identify exactly one matched IMPORTANT CATEGORY or Null if none match clearly."},
@@ -148,6 +153,7 @@ class AIClassificationService(IClassificationService):
             tool_call = response.choices[0].message.tool_calls[0]
             arguments = tool_call.function.arguments
             result = json.loads(arguments)
+
             results.append(result)
 
         return results
