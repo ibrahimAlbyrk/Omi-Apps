@@ -226,7 +226,10 @@ def get_email_subjects():
 
     user = user_repository.get_user(uid)
 
-    token_path = user["google_credentials"]
+    token_path = user.get("google_credentials", None)
+
+    if not token_path:
+        return ERROR_RESPONSES["WENT_WRONG"]
 
     with open(token_path, "rb") as token_file:
         credentials = pickle.load(token_file)
