@@ -4,6 +4,7 @@
   <a href="https://docs.omi.me/docs/developer/apps/IntegrationActions"><img src="https://img.shields.io/badge/Integrations%20Actions%20Docs-brightgreen.svg?style=for-the-badge&colorA=000000&colorB=ffffff"></a>
 </p>
 
+([Agent Mate](https://github.com/ibrahimAlbyrk/AgentMate), which covers many different structures(gmail, calender, notion etc.), is coming soon)
 ## 🚀 Project Overview
 
 MailMate is an AI-powered system that analyzes, classifies, and processes your emails. Integrated with the Gmail API, it detects important emails, performs sentiment analysis, and directs them to the Omi platform when necessary.
