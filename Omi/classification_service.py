@@ -69,8 +69,6 @@ class AIClassificationService(IClassificationService):
                     IMPORTANT CATEGORIES (exactly match the main purpose or intent): {', '.join(important_categories)}
                     IGNORED CATEGORIES (emails that are promotional, generic, or low priority): {', '.join(ignored_categories)}
                     
-                    IMPORTANT CATEGORIES: {important_categories}
-                    IGNORED CATEGORIES: {ignored_categories}
                     If both important and ignored categories seem applicable, always prioritize {"IMPORTANT" if self.always_important else "IGNORED"}.
                     Return language using ISO 639-1 format
                     Determine priority and sender importance based on urgency, deadlines, or identity.
