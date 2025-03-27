@@ -161,33 +161,14 @@ class AISummarizationService(ISummarizationService):
     def __init__(self):
         self.client = openai.Client(api_key=OPENAI_API_KEY)
         self.always_important = False
-        self.character_limit = 300
+        self.character_limit = 200
 
     def summarize_email(self, email: dict) -> str:
         system_prompt = f"""
-        You are an intelligent assistant that builds long-term memory about the user based on the emails they receive or send.
-        Your goal is not just to summarize the email, but to deeply understand what it reveals about the user's life,
-        priorities, behaviors, goals, and environment.
-        You are always learning and updating your understanding of who the user is.
-
-        YOUR TASK:
-        From each email you process, extract valuable, context-rich insights that help you form a more complete picture of the user over time.
-        These are not summaries - they are memory entries.
-        Think of them as memories you'd remember if you were a human assistant trying to truly support and anticipate the user's needs.
-
-        EACH MEMORY ENTRY SHOULD:
-        - Reflect what this message reveals about the user's current status, relationships, tasks, interests, habits, challenges, or decisions
-        - Capture the underlying dynamics (e.g. the user is leading a project, made a choice, needs something, is being waited on)
-        - Focus only on the user, not others unless relevant to the user's world
-        - Be written like an internal note, not like a summary or reply
-
-        RULES:
-        1) Output only one memory entry per email.
-        2) It must be deeply user-centric and suitable for long-term use.
-        3) It should not exceed {self.character_limit} characters.
-        4) No formatting, lists, or markdown - just a natural, concise paragraph that feels like a meaningful observation.
-        5) Do not repeat the email's wording - interpret and condense meaning.
-
+        You are building long-term memory about the user from emails.
+        Focus on what the email reveals about their behavior, relationships, or decisions.
+        Output one paragraph of max {self.character_limit} chars, deeply user-centric.
+        Avoid summaries. Be concise and insightful.
         Always act like you're building an evolving, personal profile to better serve and understand the user over time.
         """
 
